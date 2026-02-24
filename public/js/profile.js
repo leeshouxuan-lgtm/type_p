@@ -1,13 +1,13 @@
 // 프로필 입력 처리 모듈
 const Profile = (() => {
 
-    // 학반 옵션 생성 (1학년~6학년, 각 1반~10반)
+    // 학반 옵션 생성 (1학년~3학년, 각 1반~6반)
     function generateClassOptions(selectEl) {
         selectEl.innerHTML = '<option value="">학반을 선택하세요</option>';
-        for (let grade = 1; grade <= 6; grade++) {
+        for (let grade = 1; grade <= 3; grade++) {
             const group = document.createElement('optgroup');
             group.label = `${grade}학년`;
-            for (let cls = 1; cls <= 10; cls++) {
+            for (let cls = 1; cls <= 6; cls++) {
                 const opt = document.createElement('option');
                 opt.value = `${grade}-${cls}`;
                 opt.textContent = `${grade}학년 ${cls}반`;

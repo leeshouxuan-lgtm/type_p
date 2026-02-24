@@ -412,27 +412,34 @@
             KeyboardDisplay.highlightNext(sessionText[0]);
 
             // 입력 이벤트
+            // 정타/오타 판정: oninput이 발생할 때 val 전체를 sessionText와 비교
             inputEl.oninput = () => {
                 const val = inputEl.value;
                 TypingEngine.processInput(inputEl, displayEl, true);
 
-                // 콤보 계산
-                const correct = [...val].filter((c, i) => c === sessionText[i]).length;
+                // 글자가 추가된 경우 (일반 타이핑 + 조합 완성 모두 처리)
                 if (val.length > lastLen) {
+                    // 새로 추가된 글자 (영문 / 완성된 한글 음절)
                     const newChar = val[val.length - 1];
                     const expected = sessionText[val.length - 1];
                     const isCorrect = newChar === expected;
                     isCorrect ? comboCount++ : (comboCount = 0);
                     document.getElementById('stat-combo').textContent = comboCount;
 
-                    // 화면 키보드 피드백
-                    KeyboardDisplay.pressKey(newChar, isCorrect);
-
                     // 다음 키 힌트
                     const nextChar = sessionText[val.length];
                     if (nextChar) KeyboardDisplay.highlightNext(nextChar);
                     else KeyboardDisplay.highlightNext(null);
-                } else {
+
+                } else if (val.length === lastLen && val.length > 0) {
+                    // ★ 한글 IME 조합 중 — 글자 수는 같지만 마지막 글자가 바뀐 경우
+                    // (ㅍ → 파 처럼 모음이 붙을 때)
+                    // 정타/오타는 이미 keydown에서 표시되므로 힌트만 갱신
+                    const nextChar = sessionText[val.length];
+                    if (nextChar) KeyboardDisplay.highlightNext(nextChar);
+
+                } else if (val.length < lastLen) {
+                    // 백스페이스
                     comboCount = 0;
                     document.getElementById('stat-combo').textContent = '0';
                     const nextChar = sessionText[val.length];
@@ -441,11 +448,56 @@
                 lastLen = val.length;
             };
 
-            // 키다운 이벤트 — 특수키(BackSpace, Enter 등) 피드백
+            // ★ keydown — 물리 키(e.code)를 기준으로 즉시 시각 피드백
+            // 한글 IME에서도 e.code는 항상 실제 눌린 물리 키를 가리킴
             inputEl.onkeydown = (e) => {
-                if (e.key === 'Backspace') KeyboardDisplay.pressKey('Backspace', true);
-                if (e.key === 'Enter') KeyboardDisplay.pressKey('Enter', true);
-                if (e.key === ' ') KeyboardDisplay.pressKey('Space', true);
+                // 특수키
+                if (e.key === 'Backspace') { KeyboardDisplay.pressKey('Backspace', true); return; }
+                if (e.key === 'Enter') { KeyboardDisplay.pressKey('Enter', true); return; }
+                if (e.key === ' ') { KeyboardDisplay.pressKey('Space', true); return; }
+
+                // 물리 키 코드에서 단일 문자 키 추출
+                // e.code: 'KeyA' → 'a', 'Digit1' → '1', 'Semicolon' → ';' 등
+                let physKey = null;
+                if (e.code.startsWith('Key')) {
+                    physKey = e.code.slice(3).toLowerCase(); // 'KeyA' → 'a'
+                } else if (e.code.startsWith('Digit')) {
+                    physKey = e.code.slice(5);               // 'Digit1' → '1'
+                } else if (e.key.length === 1) {
+                    physKey = e.key;
+                }
+
+                if (!physKey) return;
+
+                // 정타 여부: 현재 입력값 + 이 키로 만들어질 다음 글자가 맞는지 추정
+                // 영문: physKey === sessionText[inputEl.value.length] (대/소 무시)
+                // 한글: KO_MAP[physKey] 혹은 KO_MAP[physKey.toUpperCase()]가 다음 자소와 일치
+                const pos = inputEl.value.length; // 커서 위치 (현재 입력 길이)
+                const expectedChar = sessionText[pos] || '';
+
+                // KO_MAP은 keyboard.js 내부 const이므로 여기서 다시 선언 (작은 복사본)
+                const KO = {
+                    'q': 'ㅂ', 'w': 'ㅈ', 'e': 'ㄷ', 'r': 'ㄱ', 't': 'ㅅ',
+                    'y': 'ㅛ', 'u': 'ㅕ', 'i': 'ㅑ', 'o': 'ㅐ', 'p': 'ㅔ',
+                    'a': 'ㅁ', 's': 'ㄴ', 'd': 'ㅇ', 'f': 'ㄹ', 'g': 'ㅎ',
+                    'h': 'ㅗ', 'j': 'ㅓ', 'k': 'ㅏ', 'l': 'ㅣ',
+                    'z': 'ㅋ', 'x': 'ㅌ', 'c': 'ㅊ', 'v': 'ㅍ', 'b': 'ㅠ', 'n': 'ㅜ', 'm': 'ㅡ',
+                    'Q': 'ㅃ', 'W': 'ㅉ', 'E': 'ㄸ', 'R': 'ㄲ', 'T': 'ㅆ', 'O': 'ㅒ', 'P': 'ㅖ',
+                };
+
+                let isCorrect = false;
+                if (currentLang === 'ko') {
+                    // 한글: 눌린 키의 자소가 기대 글자에 포함되는지
+                    const jaso = KO[physKey] || KO[physKey.toUpperCase()] || physKey;
+                    // 간단 판정: 기대글자가 자소를 포함하면 정타로 간주
+                    // (완전한 판정은 IME 완성 후 oninput에서 수행)
+                    isCorrect = expectedChar.includes(jaso) || expectedChar === jaso;
+                } else {
+                    // 영문: 대소문자 무시 비교
+                    isCorrect = physKey.toLowerCase() === expectedChar.toLowerCase();
+                }
+
+                KeyboardDisplay.pressKey(physKey, isCorrect);
             };
 
             // 화면 전환

@@ -85,12 +85,15 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/auth.js"></script>
   <script>
-    // ★ 로그인 페이지 진입 시 항상 기존 세션 강제 종료
-    // → 이전 사용자가 로그아웃 없이 자리를 떠나도 새 로그인 화면이 보임
+    // ★ 로그인 페이지 진입 시:
+    // 1) 플래그 초기화 (이전 세션 무효화)
+    // 2) Firebase 세션 강제 종료
+    Auth.clearFreshLogin();
     auth.signOut().then(() => {
-      // signOut 완료 후에만 auth listener 등록 (자동 리다이렉트 방지)
       Auth.initAuthListener({
         onLogin: async (user, isAdmin) => {
+          // ★ 정상 로그인 완료 → 플래그 세팅
+          Auth.markFreshLogin();
           const hasProfile = await Auth.checkProfile(user.uid);
           if (!hasProfile) {
             window.location.href = '/profile.html';

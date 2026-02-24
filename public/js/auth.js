@@ -50,6 +50,9 @@ const Auth = (() => {
         return true;
     }
 
+    // 로그인 페이지를 정상적으로 거쳤는지 추적하는 플래그 키
+    const FRESH_KEY = 'gtp_fresh';
+
     // 인증 상태 변화 감지 및 페이지 라우팅
     function initAuthListener(options = {}) {
         const {
@@ -61,6 +64,14 @@ const Auth = (() => {
 
         auth.onAuthStateChanged(async (user) => {
             if (user) {
+                // requireAuth 페이지(app, admin, myrecords 등)에서
+                // 로그인 페이지를 거치지 않고 Firebase 세션으로 접근한 경우 강제 로그아웃
+                if (requireAuth && sessionStorage.getItem(FRESH_KEY) !== '1') {
+                    await auth.signOut();
+                    window.location.href = '/index.html';
+                    return;
+                }
+
                 const admin = await isAdmin(user.uid);
 
                 if (requireAdmin && !admin) {
@@ -80,5 +91,15 @@ const Auth = (() => {
         });
     }
 
-    return { signIn, signOut, isAdmin, checkProfile, initAuthListener };
+    // 로그인 성공 플래그 세팅 (index.html에서 호출)
+    function markFreshLogin() {
+        sessionStorage.setItem(FRESH_KEY, '1');
+    }
+
+    // 로그인 플래그 초기화 (index.html 접근 시 호출)
+    function clearFreshLogin() {
+        sessionStorage.removeItem(FRESH_KEY);
+    }
+
+    return { signIn, signOut, isAdmin, checkProfile, initAuthListener, markFreshLogin, clearFreshLogin };
 })();

@@ -129,6 +129,7 @@
                     email: currentUser.email,
                     photoURL: currentUser.photoURL || '',
                 });
+                Auth.markFreshLogin(); // 프로필 설정 완료도 정상 로그인으로 간주
                 window.location.href = '/app.html';
             } catch (err) {
                 saveError.textContent = '저장 중 오류가 발생했습니다. 다시 시도해 주세요.';

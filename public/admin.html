@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>타자마스터 — 관리자</title>
+    <link rel="stylesheet" href="css/main.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+
+    <!-- 네비 -->
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/admin.html" class="nav-logo">⌨️ 관리자 패널</a>
+            <div class="nav-user">
+                <a href="/app.html" class="btn-secondary" style="padding:8px 16px;font-size:0.85rem">← 연습 화면</a>
+                <button class="btn-icon" onclick="Auth.signOut()">🚪</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top:32px;padding-bottom:64px">
+
+        <!-- 탭 네비 -->
+        <div class="tabs" style="margin-bottom:28px">
+            <button class="tab-btn active" id="tab-students" onclick="switchTab('students')">👥 학생 목록</button>
+            <button class="tab-btn" id="tab-ranking" onclick="switchTab('ranking')">🏆 랭킹 설정</button>
+            <button class="tab-btn" id="tab-content" onclick="switchTab('content')">📚 콘텐츠 관리</button>
+        </div>
+
+        <!-- ── 탭 1: 학생 목록 ── -->
+        <div id="panel-students">
+
+            <!-- 필터 -->
+            <div class="card" style="margin-bottom:20px">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+                    <div style="flex:1;min-width:140px">
+                        <label class="form-label">학반 필터</label>
+                        <select id="filter-class" class="input-field" onchange="filterStudents()">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;min-width:140px">
+                        <label class="form-label">이름 검색</label>
+                        <input type="text" id="filter-name" class="input-field" placeholder="이름 검색..."
+                            oninput="filterStudents()">
+                    </div>
+                    <button class="btn-secondary" onclick="exportCSV()" style="white-space:nowrap">📥 CSV 내보내기</button>
+                    <button class="btn-primary" onclick="loadStudents()" style="white-space:nowrap">🔄 새로고침</button>
+                </div>
+            </div>
+
+            <!-- 학생 테이블 -->
+            <div class="card">
+                <table class="ranking-table" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>학반</th>
+                            <th>이름</th>
+                            <th>레벨</th>
+                            <th>누적 타수</th>
+                            <th>가입일</th>
+                            <th>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="student-table-body">
+                        <tr>
+                            <td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── 탭 2: 랭킹 설정 ── -->
+        <div id="panel-ranking" class="hidden">
+            <div class="card" style="max-width:480px">
+                <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:20px">🏆 랭킹 보드 표시 설정</h3>
+                <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:24px">
+                    OFF로 설정하면 학생 화면에서 해당 랭킹 보드가 즉시 숨겨집니다.
+                </p>
+                <div class="toggle-wrap">
+                    <div>
+                        <div class="toggle-label">학반 랭킹 (상위 5명)</div>
+                        <div style="font-size:0.8rem;color:var(--text-muted)">같은 반 학생 중 WPM 상위 5명 표시</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="toggle-class" onchange="saveRankingSettings()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-wrap">
+                    <div>
+                        <div class="toggle-label">학년 랭킹 (상위 25명)</div>
+                        <div style="font-size:0.8rem;color:var(--text-muted)">같은 학년 학생 중 WPM 상위 25명 표시</div>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="toggle-grade" onchange="saveRankingSettings()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div id="ranking-save-msg" class="hidden"
+                    style="margin-top:16px;padding:10px;background:rgba(0,255,136,0.1);border:1px solid var(--accent-green);border-radius:var(--radius-sm);color:var(--accent-green);font-size:0.85rem;text-align:center">
+                    ✅ 설정이 저장되었습니다.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 탭 3: 콘텐츠 관리 ── -->
+        <div id="panel-content" class="hidden">
+            <div class="card">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+                    <h3 style="font-size:1.1rem;font-weight:900">📚 연습 콘텐츠 관리</h3>
+                    <div class="tabs" style="margin-bottom:0">
+                        <button class="tab-btn active" id="ctab-words_ko" onclick="switchContent('words_ko')">한글
+                            단어</button>
+                        <button class="tab-btn" id="ctab-sentences_ko" onclick="switchContent('sentences_ko')">한글
+                            문장</button>
+                        <button class="tab-btn" id="ctab-paragraphs_ko" onclick="switchContent('paragraphs_ko')">한글
+                            문단</button>
+                        <button class="tab-btn" id="ctab-keyboard_ko" onclick="switchContent('keyboard_ko')">한글
+                            자리연습</button>
+                        <button class="tab-btn" id="ctab-words_en" onclick="switchContent('words_en')">영문 단어</button>
+                        <button class="tab-btn" id="ctab-sentences_en" onclick="switchContent('sentences_en')">영문
+                            문장</button>
+                        <button class="tab-btn" id="ctab-paragraphs_en" onclick="switchContent('paragraphs_en')">영문
+                            문단</button>
+                        <button class="tab-btn" id="ctab-keyboard_en" onclick="switchContent('keyboard_en')">영문
+                            자리연습</button>
+                    </div>
+                </div>
+
+                <!-- 새 항목 추가 -->
+                <div style="display:flex;gap:12px;margin-bottom:20px">
+                    <input type="text" id="content-new-input" class="input-field" placeholder="새 항목 입력..."
+                        style="flex:1">
+                    <button class="btn-primary" onclick="addContentItem()">+ 추가</button>
+                </div>
+
+                <!-- 항목 목록 -->
+                <div id="content-list"
+                    style="display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto"></div>
+                <div id="content-save-msg" class="hidden"
+                    style="margin-top:12px;padding:10px;background:rgba(0,255,136,0.1);border:1px solid var(--accent-green);border-radius:var(--radius-sm);color:var(--accent-green);font-size:0.85rem;text-align:center">
+                    ✅ 저장되었습니다.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 학생 수정 모달 -->
+    <div id="edit-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3 class="modal-title">학생 정보 수정</h3>
+            <input type="hidden" id="edit-uid">
+            <div class="form-group">
+                <label class="form-label">이름</label>
+                <input type="text" id="edit-name" class="input-field" maxlength="5">
+            </div>
+            <div class="form-group">
+                <label class="form-label">학반</label>
+                <select id="edit-class" class="input-field"></select>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:8px">
+                <button class="btn-primary" onclick="saveStudentEdit()"
+                    style="flex:1;justify-content:center">저장</button>
+                <button class="btn-secondary" onclick="closeEditModal()"
+                    style="flex:1;justify-content:center">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/profile.js"></script>
+    <script src="js/content.js"></script>
+    <script src="js/records.js"></script>
+    <script>
+        let allStudents = [];
+        let currentContentKey = 'words_ko';
+        let currentContentItems = [];
+
+        // ── 인증 ──────────────────────────────
+        Auth.initAuthListener({
+            requireAuth: true,
+            requireAdmin: true,
+            onLogin: async () => {
+                await loadStudents();
+                await loadRankingSettings();
+                await loadContent('words_ko');
+            }
+        });
+
+        // ── 탭 전환 ──────────────────────────
+        function switchTab(name) {
+            ['students', 'ranking', 'content'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.toggle('active', t === name);
+                document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== name);
+            });
+        }
+
+        // ── 학생 목록 ─────────────────────────
+        async function loadStudents() {
+            const tbody = document.getElementById('student-table-body');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>';
+            allStudents = await Records.getAllUsers();
+
+            // 학반 필터 드롭다운 갱신
+            const classes = [...new Set(allStudents.map(s => s.className))].sort();
+            const filterSel = document.getElementById('filter-class');
+            filterSel.innerHTML = '<option value="">전체</option>' +
+                classes.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            renderStudentTable(allStudents);
+        }
+
+        function filterStudents() {
+            const cls = document.getElementById('filter-class').value;
+            const name = document.getElementById('filter-name').value.trim();
+            let filtered = allStudents;
+            if (cls) filtered = filtered.filter(s => s.className === cls);
+            if (name) filtered = filtered.filter(s => s.name.includes(name));
+            renderStudentTable(filtered);
+        }
+
+        function renderStudentTable(students) {
+            const tbody = document.getElementById('student-table-body');
+            if (!students.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">학생이 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = students.map(s => `
+        <tr>
+          <td><span style="background:rgba(0,212,255,0.1);padding:2px 10px;border-radius:99px;font-size:0.85rem">${s.className || '-'}</span></td>
+          <td><strong>${s.name || '-'}</strong></td>
+          <td>Lv.${s.level || 1}</td>
+          <td>${(s.totalKeystrokes || 0).toLocaleString()} 타</td>
+          <td>${s.joinedAt ? new Date(s.joinedAt.toDate()).toLocaleDateString('ko-KR') : '-'}</td>
+          <td>
+            <button class="btn-icon" onclick="openEditModal('${s.id}','${s.name}','${s.className}')" title="수정">✏️</button>
+          </td>
+        </tr>
+      `).join('');
+        }
+
+        // ── 학생 수정 모달 ───────────────────
+        function openEditModal(uid, name, className) {
+            document.getElementById('edit-uid').value = uid;
+            document.getElementById('edit-name').value = name;
+            Profile.generateClassOptions(document.getElementById('edit-class'));
+            document.getElementById('edit-class').value = className;
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+        async function saveStudentEdit() {
+            const uid = document.getElementById('edit-uid').value;
+            const name = document.getElementById('edit-name').value.trim();
+            const className = document.getElementById('edit-class').value;
+            const grade = parseInt(className.split('-')[0]);
+            if (!name || !className) { alert('이름과 학반을 입력하세요.'); return; }
+            await db.collection('users').doc(uid).update({ name, className, grade });
+            closeEditModal();
+            showToast('저장되었습니다.', 'success');
+            await loadStudents();
+        }
+
+        // ── CSV 내보내기 ─────────────────────
+        function exportCSV() {
+            const cls = document.getElementById('filter-class').value;
+            let students = allStudents;
+            if (cls) students = students.filter(s => s.className === cls);
+
+            const header = ['학반', '이름', '레벨', '누적타수', '가입일'];
+            const rows = students.map(s => [
+                s.className || '',
+                s.name || '',
+                s.level || 1,
+                s.totalKeystrokes || 0,
+                s.joinedAt ? new Date(s.joinedAt.toDate()).toLocaleDateString('ko-KR') : ''
+            ]);
+
+            const csv = '\uFEFF' + [header, ...rows].map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `학생기록_${cls || '전체'}_${new Date().toLocaleDateString('ko-KR')}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ── 랭킹 설정 ────────────────────────
+        async function loadRankingSettings() {
+            const settings = await Records.getRankingSettings();
+            document.getElementById('toggle-class').checked = settings.classRankingEnabled !== false;
+            document.getElementById('toggle-grade').checked = settings.gradeRankingEnabled !== false;
+        }
+        async function saveRankingSettings() {
+            const settings = {
+                classRankingEnabled: document.getElementById('toggle-class').checked,
+                gradeRankingEnabled: document.getElementById('toggle-grade').checked,
+            };
+            await Records.setRankingSettings(settings);
+            const msg = document.getElementById('ranking-save-msg');
+            msg.classList.remove('hidden');
+            setTimeout(() => msg.classList.add('hidden'), 2500);
+        }
+
+        // ── 콘텐츠 관리 ─────────────────────
+        async function loadContent(key) {
+            currentContentKey = key;
+            currentContentItems = await Content.getContent(key);
+            renderContentList();
+            document.querySelectorAll('[id^="ctab-"]').forEach(b => {
+                b.classList.toggle('active', b.id === `ctab-${key}`);
+            });
+        }
+        function switchContent(key) { loadContent(key); }
+
+        function renderContentList() {
+            const el = document.getElementById('content-list');
+            if (!currentContentItems.length) {
+                el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted)">항목이 없습니다.</div>';
+                return;
+            }
+            el.innerHTML = currentContentItems.map((item, i) => `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm)">
+          <span style="color:var(--text-muted);font-size:0.8rem;min-width:24px">${i + 1}</span>
+          <span style="flex:1;font-size:0.9rem">${item}</span>
+          <button class="btn-icon" onclick="deleteContentItem(${i})" title="삭제">🗑️</button>
+        </div>
+      `).join('');
+        }
+
+        async function addContentItem() {
+            const input = document.getElementById('content-new-input');
+            const val = input.value.trim();
+            if (!val) return;
+            currentContentItems.push(val);
+            await Content.save(currentContentKey, currentContentItems);
+            input.value = '';
+            renderContentList();
+            showMsg('content-save-msg');
+        }
+
+        async function deleteContentItem(index) {
+            if (!confirm(`"${currentContentItems[index]}" 항목을 삭제할까요?`)) return;
+            currentContentItems.splice(index, 1);
+            await Content.save(currentContentKey, currentContentItems);
+            renderContentList();
+            showMsg('content-save-msg');
+        }
+
+        // ── 유틸 ─────────────────────────────
+        function showMsg(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 2500);
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+
+</html>

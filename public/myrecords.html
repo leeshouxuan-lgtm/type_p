@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경덕중학교 타자마스터 — 내 기록</title>
+    <link rel="stylesheet" href="css/main.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+    <!-- 네비게이션 -->
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/app.html" class="nav-logo">
+                <img src="/img/logo.png" alt="경덕중학교"
+                    style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px">
+                경덕중학교 타자마스터
+            </a>
+            <div class="nav-user">
+                <span id="nav-level" class="nav-level">Lv.1</span>
+                <span id="nav-name" style="font-size:0.9rem;color:var(--text-secondary)"></span>
+                <img id="nav-avatar" src="" alt="프로필" class="nav-avatar">
+                <a href="/app.html" class="btn-secondary" style="padding:8px 16px;font-size:0.85rem">← 연습하기</a>
+                <button class="btn-icon" onclick="Auth.signOut()">🚪</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top:32px;padding-bottom:64px">
+
+        <!-- 제목 -->
+        <div style="margin-bottom:28px">
+            <h1 style="font-size:1.8rem;font-weight:900" class="text-gradient">📊 내 연습 기록</h1>
+            <p style="color:var(--text-secondary);margin-top:6px" id="subtitle-info"></p>
+        </div>
+
+        <!-- 요약 카드 4개 -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px" id="summary-grid">
+            <div class="card" style="text-align:center">
+                <div
+                    style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+                    최고 WPM</div>
+                <div id="stat-best-wpm" style="font-size:2.2rem;font-weight:900;color:var(--accent-cyan)">—</div>
+            </div>
+            <div class="card" style="text-align:center">
+                <div
+                    style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+                    평균 정확도</div>
+                <div id="stat-avg-acc" style="font-size:2.2rem;font-weight:900;color:var(--accent-green)">—</div>
+            </div>
+            <div class="card" style="text-align:center">
+                <div
+                    style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+                    총 연습 횟수</div>
+                <div id="stat-total-sessions" style="font-size:2.2rem;font-weight:900;color:var(--accent-purple)">—
+                </div>
+            </div>
+            <div class="card" style="text-align:center">
+                <div
+                    style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+                    누적 타수</div>
+                <div id="stat-total-keys" style="font-size:2.2rem;font-weight:900;color:var(--accent-yellow)">—</div>
+            </div>
+        </div>
+
+        <!-- 월별 WPM 그래프 -->
+        <div class="card" style="margin-bottom:24px">
+            <div
+                style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+                <h2 style="font-size:1.1rem;font-weight:900">📈 월별 WPM 변화</h2>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <select id="chart-mode-filter" class="input-field" style="padding:8px 14px;width:auto"
+                        onchange="updateChart()">
+                        <option value="all">전체 모드</option>
+                        <option value="keyboard">자리연습</option>
+                        <option value="word">단어</option>
+                        <option value="sentence">문장</option>
+                        <option value="paragraph">문단</option>
+                    </select>
+                    <select id="chart-lang-filter" class="input-field" style="padding:8px 14px;width:auto"
+                        onchange="updateChart()">
+                        <option value="all">한글+영문</option>
+                        <option value="ko">한글</option>
+                        <option value="en">영문</option>
+                    </select>
+                </div>
+            </div>
+            <div style="position:relative;height:280px">
+                <canvas id="wpm-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- 모드별 통계 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+            <div class="card">
+                <h3 style="font-size:1rem;font-weight:900;margin-bottom:16px">🌏 언어별 평균 WPM</h3>
+                <div id="lang-stats" style="display:flex;flex-direction:column;gap:12px"></div>
+            </div>
+            <div class="card">
+                <h3 style="font-size:1rem;font-weight:900;margin-bottom:16px">📝 모드별 평균 WPM</h3>
+                <div id="mode-stats" style="display:flex;flex-direction:column;gap:12px"></div>
+            </div>
+        </div>
+
+        <!-- 뱃지 -->
+        <div class="card" style="margin-bottom:24px">
+            <h3 style="font-size:1rem;font-weight:900;margin-bottom:16px">🏅 획득한 뱃지</h3>
+            <div id="badge-list" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+        </div>
+
+        <!-- 최근 기록 테이블 -->
+        <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <h3 style="font-size:1rem;font-weight:900">📋 최근 연습 기록</h3>
+                <span id="records-count" style="font-size:0.85rem;color:var(--text-muted)"></span>
+            </div>
+            <div style="overflow-x:auto">
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>날짜</th>
+                            <th>언어</th>
+                            <th>모드</th>
+                            <th>WPM</th>
+                            <th>정확도</th>
+                            <th>시간</th>
+                        </tr>
+                    </thead>
+                    <tbody id="records-table-body">
+                        <tr>
+                            <td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/profile.js"></script>
+    <script src="js/records.js"></script>
+    <script>
+        const BADGE_INFO = {
+            first_session: { icon: '🎯', name: '첫 연습' },
+            streak_7: { icon: '🔥', name: '7일 연속' },
+            wpm_100: { icon: '⚡', name: 'WPM 100' },
+            wpm_200: { icon: '🚀', name: 'WPM 200' },
+            accuracy_99: { icon: '🎖️', name: '정확도 99%' },
+            keys_10000: { icon: '💎', name: '1만 타' },
+            keys_100000: { icon: '👑', name: '10만 타' },
+        };
+
+        const MODE_LABEL = { keyboard: '자리연습', word: '단어', sentence: '문장', paragraph: '문단' };
+        const LANG_LABEL = { ko: '🇰🇷 한글', en: '🇺🇸 영문' };
+
+        let allRecords = [];
+        let wpmChart = null;
+        let userProfile = null;
+
+        // ── 인증 ──────────────────────────────────
+        Auth.initAuthListener({
+            requireAuth: true,
+            onLogin: async (user) => {
+                const profile = await Profile.getProfile(user.uid);
+                if (!profile?.profileComplete) { location.href = '/profile.html'; return; }
+                userProfile = profile;
+
+                document.getElementById('nav-name').textContent = profile.name;
+                document.getElementById('nav-avatar').src = user.photoURL || '';
+                document.getElementById('nav-level').textContent = `Lv.${profile.level || 1}`;
+                document.getElementById('subtitle-info').textContent =
+                    `${profile.className} · ${profile.name} 학생의 타자 연습 통계`;
+
+                allRecords = await Records.getMyRecords(user.uid, 200);
+                renderAll(profile);
+            }
+        });
+
+        // ── 전체 렌더 ─────────────────────────────
+        function renderAll(profile) {
+            renderSummary();
+            initChart();
+            updateChart();
+            renderLangModeStats();
+            renderBadges(profile.badges || []);
+            renderRecentTable();
+        }
+
+        // ── 요약 카드 ─────────────────────────────
+        function renderSummary() {
+            if (!allRecords.length) return;
+            const wmps = allRecords.map(r => r.wpm || 0);
+            const accs = allRecords.map(r => r.accuracy || 0);
+            const keys = userProfile.totalKeystrokes || 0;
+            document.getElementById('stat-best-wpm').textContent = Math.max(...wmps);
+            document.getElementById('stat-avg-acc').textContent = avg(accs).toFixed(1) + '%';
+            document.getElementById('stat-total-sessions').textContent = allRecords.length + '회';
+            document.getElementById('stat-total-keys').textContent = keys.toLocaleString();
+        }
+
+        // ── 월별 차트 ─────────────────────────────
+        function initChart() {
+            const ctx = document.getElementById('wpm-chart').getContext('2d');
+            wpmChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { labels: { color: '#a0a0cc', font: { family: 'Noto Sans KR', size: 12 } } },
+                        tooltip: {
+                            backgroundColor: '#1a1a35',
+                            borderColor: '#2a2a5a',
+                            borderWidth: 1,
+                            titleColor: '#e8e8ff',
+                            bodyColor: '#a0a0cc',
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(42,42,90,0.5)' },
+                            ticks: { color: '#606090' }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            grid: { color: 'rgba(42,42,90,0.5)' },
+                            ticks: { color: '#606090' },
+                            title: { display: true, text: 'WPM', color: '#606090' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            const modeFilter = document.getElementById('chart-mode-filter').value;
+            const langFilter = document.getElementById('chart-lang-filter').value;
+
+            let filtered = allRecords;
+            if (modeFilter !== 'all') filtered = filtered.filter(r => r.mode === modeFilter);
+            if (langFilter !== 'all') filtered = filtered.filter(r => r.lang === langFilter);
+
+            // 월별 그룹
+            const monthly = {};
+            filtered.forEach(r => {
+                if (!r.createdAt) return;
+                const d = r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                if (!monthly[key]) monthly[key] = [];
+                monthly[key].push(r.wpm || 0);
+            });
+
+            const labels = Object.keys(monthly).sort();
+            const avgWpms = labels.map(k => avg(monthly[k]));
+            const maxWpms = labels.map(k => Math.max(...monthly[k]));
+
+            wpmChart.data.labels = labels.map(l => l.replace('-', '년 ') + '월');
+            wpmChart.data.datasets = [
+                {
+                    label: '평균 WPM',
+                    data: avgWpms,
+                    borderColor: '#00d4ff',
+                    backgroundColor: 'rgba(0,212,255,0.08)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#00d4ff',
+                    pointRadius: 4,
+                },
+                {
+                    label: '최고 WPM',
+                    data: maxWpms,
+                    borderColor: '#9b59ff',
+                    backgroundColor: 'transparent',
+                    borderDash: [5, 5],
+                    tension: 0.4,
+                    pointBackgroundColor: '#9b59ff',
+                    pointRadius: 4,
+                }
+            ];
+            wpmChart.update();
+        }
+
+        // ── 언어/모드별 통계 ─────────────────────
+        function renderLangModeStats() {
+            // 언어별
+            const langEl = document.getElementById('lang-stats');
+            ['ko', 'en'].forEach(lang => {
+                const recs = allRecords.filter(r => r.lang === lang);
+                if (!recs.length) return;
+                const avgWpm = avg(recs.map(r => r.wpm || 0)).toFixed(0);
+                langEl.innerHTML += `
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:0.9rem">${LANG_LABEL[lang]}</span>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:0.8rem;color:var(--text-muted)">${recs.length}회</span>
+            <span style="font-weight:900;color:var(--accent-cyan)">${avgWpm} WPM</span>
+          </div>
+        </div>
+        <div class="progress-bar-wrap" style="margin-top:4px">
+          <div class="progress-bar-fill" style="width:${Math.min(avgWpm / 2, 100)}%"></div>
+        </div>
+      `;
+            });
+
+            // 모드별
+            const modeEl = document.getElementById('mode-stats');
+            ['keyboard', 'word', 'sentence', 'paragraph'].forEach(mode => {
+                const recs = allRecords.filter(r => r.mode === mode);
+                if (!recs.length) return;
+                const avgWpm = avg(recs.map(r => r.wpm || 0)).toFixed(0);
+                modeEl.innerHTML += `
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:0.9rem">${MODE_LABEL[mode] || mode}</span>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:0.8rem;color:var(--text-muted)">${recs.length}회</span>
+            <span style="font-weight:900;color:var(--accent-purple)">${avgWpm} WPM</span>
+          </div>
+        </div>
+        <div class="progress-bar-wrap" style="margin-top:4px">
+          <div class="progress-bar-fill" style="width:${Math.min(avgWpm / 2, 100)}%;background:linear-gradient(135deg,#9b59ff,#ff59b2)"></div>
+        </div>
+      `;
+            });
+        }
+
+        // ── 뱃지 ────────────────────────────────
+        function renderBadges(badges) {
+            const el = document.getElementById('badge-list');
+            if (!badges.length) {
+                el.innerHTML = '<span style="color:var(--text-muted);font-size:0.9rem">아직 획득한 뱃지가 없어요. 연습을 계속하면 받을 수 있어요!</span>';
+                return;
+            }
+            el.innerHTML = badges.map(id => {
+                const b = BADGE_INFO[id];
+                return b ? `<div class="badge">${b.icon} ${b.name}</div>` : '';
+            }).join('');
+        }
+
+        // ── 최근 기록 테이블 ─────────────────────
+        function renderRecentTable() {
+            const tbody = document.getElementById('records-table-body');
+            document.getElementById('records-count').textContent = `최근 ${allRecords.length}건`;
+            if (!allRecords.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">아직 기록이 없어요. 연습을 시작해 보세요!</td></tr>';
+                return;
+            }
+            tbody.innerHTML = allRecords.map(r => {
+                const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date();
+                const dateStr = d.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) +
+                    ' ' + d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+                const accColor = r.accuracy >= 95 ? 'var(--accent-green)' : r.accuracy >= 80 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+                return `<tr>
+        <td style="color:var(--text-muted);font-size:0.85rem">${dateStr}</td>
+        <td>${LANG_LABEL[r.lang] || r.lang}</td>
+        <td><span style="background:rgba(155,89,255,0.15);padding:2px 10px;border-radius:99px;font-size:0.8rem">${MODE_LABEL[r.mode] || r.mode}</span></td>
+        <td><strong style="color:var(--accent-cyan)">${r.wpm}</strong></td>
+        <td style="color:${accColor};font-weight:700">${r.accuracy}%</td>
+        <td style="color:var(--text-muted)">${r.duration}초</td>
+      </tr>`;
+            }).join('');
+        }
+
+        // ── 유틸 ────────────────────────────────
+        function avg(arr) {
+            return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+        }
+    </script>
+
+    <style>
+        @media (max-width: 768px) {
+            #summary-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .card+.card {
+                margin-top: 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+</body>
+
+</html>

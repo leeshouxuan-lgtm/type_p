@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>타자마스터 — 프로필 설정</title>
+    <link rel="stylesheet" href="css/main.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+    <div class="page-center">
+        <div style="width:100%;max-width:480px">
+
+            <!-- 상단 -->
+            <div style="text-align:center;margin-bottom:32px">
+                <div style="font-size:3rem;margin-bottom:12px">👋</div>
+                <h1 class="text-gradient" style="font-size:2rem;font-weight:900;margin-bottom:8px">처음 오셨네요!</h1>
+                <p style="color:var(--text-secondary)">학반과 이름을 등록하고 타자 연습을 시작해 보세요.</p>
+            </div>
+
+            <!-- 프로필 카드 -->
+            <div class="card">
+                <!-- Google 계정 정보 -->
+                <div id="google-info"
+                    style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--bg-primary);border-radius:var(--radius-md);margin-bottom:28px">
+                    <img id="profile-photo" src="" alt="프로필"
+                        style="width:48px;height:48px;border-radius:50%;border:2px solid var(--accent-cyan)">
+                    <div>
+                        <div id="profile-google-name" style="font-weight:700"></div>
+                        <div id="profile-email" style="font-size:0.85rem;color:var(--text-muted)"></div>
+                    </div>
+                </div>
+
+                <form id="profile-form">
+                    <!-- 학반 선택 -->
+                    <div class="form-group">
+                        <label class="form-label" for="select-class">학반 선택 *</label>
+                        <select id="select-class" class="input-field" required>
+                            <option value="">학반을 선택하세요</option>
+                        </select>
+                    </div>
+
+                    <!-- 이름 입력 -->
+                    <div class="form-group">
+                        <label class="form-label" for="input-name">학생 이름 *</label>
+                        <input type="text" id="input-name" class="input-field" placeholder="실명을 한글로 입력하세요 (예: 홍길동)"
+                            maxlength="5" required>
+                        <div id="name-error"
+                            style="font-size:0.8rem;color:var(--accent-red);margin-top:6px;display:none"></div>
+                    </div>
+
+                    <!-- 안내 -->
+                    <div
+                        style="padding:12px 16px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:var(--radius-sm);margin-bottom:24px;font-size:0.85rem;color:var(--text-secondary)">
+                        ℹ️ 등록 후 이름과 학반은 선생님(관리자)만 수정할 수 있습니다.
+                    </div>
+
+                    <button type="submit" id="btn-save" class="btn-primary w-full" style="justify-content:center">
+                        시작하기 🚀
+                    </button>
+                </form>
+
+                <div id="save-error" class="hidden"
+                    style="margin-top:12px;padding:10px;background:rgba(255,68,68,0.1);border:1px solid var(--accent-red);border-radius:var(--radius-sm);color:var(--accent-red);font-size:0.85rem;text-align:center">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/profile.js"></script>
+    <script>
+        let currentUser = null;
+
+        Auth.initAuthListener({
+            requireAuth: true,
+            onLogin: async (user) => {
+                currentUser = user;
+
+                // 이미 프로필 있으면 앱으로
+                const hasProfile = await Auth.checkProfile(user.uid);
+                if (hasProfile) { window.location.href = '/app.html'; return; }
+
+                // Google 계정 정보 표시
+                document.getElementById('profile-photo').src = user.photoURL || '';
+                document.getElementById('profile-google-name').textContent = user.displayName || '';
+                document.getElementById('profile-email').textContent = user.email || '';
+
+                // 학반 드롭다운 생성
+                Profile.generateClassOptions(document.getElementById('select-class'));
+            }
+        });
+
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const className = document.getElementById('select-class').value;
+            const name = document.getElementById('input-name').value;
+            const nameError = document.getElementById('name-error');
+            const saveError = document.getElementById('save-error');
+
+            // 이름 유효성 검사
+            const err = Profile.validateName(name);
+            if (err) {
+                nameError.textContent = err;
+                nameError.style.display = 'block';
+                return;
+            }
+            nameError.style.display = 'none';
+
+            if (!className) {
+                alert('학반을 선택해 주세요.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-save');
+            btn.disabled = true;
+            btn.textContent = '저장 중...';
+
+            try {
+                await Profile.saveProfile(currentUser.uid, {
+                    name: name.trim(),
+                    className,
+                    email: currentUser.email,
+                    photoURL: currentUser.photoURL || '',
+                });
+                window.location.href = '/app.html';
+            } catch (err) {
+                saveError.textContent = '저장 중 오류가 발생했습니다. 다시 시도해 주세요.';
+                saveError.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = '시작하기 🚀';
+            }
+        });
+    </script>
+</body>
+
+</html>

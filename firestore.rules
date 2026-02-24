@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 관리자 여부 확인 함수
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // 로그인 여부 확인 함수
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    // 본인 여부 확인 함수
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    // ── users 컬렉션 ──────────────────────────────────
+    match /users/{uid} {
+      // 본인: 읽기/생성 허용. 수정은 profileComplete 최초 설정만 허용
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      // 본인은 profileComplete, level, totalExp, totalKeystrokes만 수정 가능
+      // 이름/학반 수정은 관리자만
+      allow update: if isAdmin() ||
+        (isOwner(uid) && !(request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['name', 'className'])));
+    }
+
+    // ── users 하위 records 컬렉션 ──────────────────────
+    match /users/{uid}/records/{recordId} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // ── admins 컬렉션 ──────────────────────────────────
+    match /admins/{uid} {
+      allow read: if isAdmin();
+      allow write: if false; // Firebase Console에서만 수동 관리
+    }
+
+    // ── settings 컬렉션 (랭킹 ON/OFF 등) ──────────────
+    match /settings/{doc} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── content 컬렉션 (연습 콘텐츠) ──────────────────
+    match /content/{doc} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── ranking 컬렉션 (캐시된 랭킹 결과) ─────────────
+    match /ranking/{doc} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

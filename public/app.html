@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경덕중학교 타자마스터 — 연습</title>
+    <meta name="description" content="한글/영문 타자 연습 — 자리연습, 단어, 문장, 문단 모드">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/typing.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <style>
+        /* ── 화면 키보드 스타일 ── */
+        .keyboard-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            user-select: none;
+        }
+
+        .kb-row {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+
+        .kb-key {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
+            padding: 0 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-bottom: 3px solid rgba(0, 0, 0, 0.4);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            transition: all 0.1s ease;
+            cursor: default;
+        }
+
+        .key-wide {
+            min-width: 56px;
+        }
+
+        .key-wider {
+            min-width: 76px;
+        }
+
+        .key-space {
+            min-width: 240px;
+        }
+
+        .key-correct {
+            background: rgba(0, 255, 136, 0.25) !important;
+            border-color: var(--accent-green) !important;
+            color: var(--accent-green) !important;
+            transform: translateY(2px);
+            border-bottom-width: 1px !important;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+        }
+
+        .key-error {
+            background: rgba(255, 68, 68, 0.25) !important;
+            border-color: var(--accent-red) !important;
+            color: var(--accent-red) !important;
+            transform: translateY(2px);
+            border-bottom-width: 1px !important;
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
+        }
+
+        .key-hint {
+            background: rgba(0, 212, 255, 0.2) !important;
+            border-color: var(--accent-cyan) !important;
+            color: var(--accent-cyan) !important;
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
+            animation: hintPulse 1s ease infinite;
+        }
+
+        @keyframes hintPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(0, 212, 255, 0.9);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 네비게이션 -->
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/app.html" class="nav-logo">
+                <img src="/img/logo.png" alt="경덕중학교"
+                    style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px">
+                경덕중학교 타자마스터
+            </a>
+            <div class="nav-user">
+                <span id="nav-level" class="nav-level">Lv.1</span>
+                <span id="nav-name" style="font-size:0.9rem;color:var(--text-secondary)"></span>
+                <img id="nav-avatar" src="" alt="프로필" class="nav-avatar">
+                <a href="/myrecords.html" class="btn-secondary" style="padding:8px 16px;font-size:0.85rem">📊 내 기록</a>
+                <button id="btn-admin" class="btn-secondary hidden" style="padding:8px 16px;font-size:0.85rem"
+                    onclick="location.href='/admin.html'">🛠 관리자</button>
+                <button class="btn-icon" onclick="Auth.signOut()" title="로그아웃">🚪</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top:28px;padding-bottom:64px">
+
+        <!-- EXP 바 -->
+        <div style="margin-bottom:20px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted)">경험치</div>
+                <div id="exp-text" style="font-size:0.8rem;color:var(--accent-cyan)"></div>
+            </div>
+            <div class="progress-bar-wrap">
+                <div id="exp-bar" class="progress-bar-fill" style="width:0%"></div>
+            </div>
+        </div>
+
+        <!-- ── 세션 설정 영역 ── -->
+        <div id="section-setup" class="card" style="margin-bottom:24px">
+            <div
+                style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px">
+                <h2 style="font-size:1.2rem;font-weight:900">🎮 연습 설정</h2>
+                <div class="lang-toggle">
+                    <button class="lang-btn active" id="btn-ko" onclick="setLang('ko')">한글</button>
+                    <button class="lang-btn" id="btn-en" onclick="setLang('en')">English</button>
+                </div>
+            </div>
+
+            <!-- 모드 선택 (4개 grid) -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+                <div class="mode-card" data-mode="keyboard" onclick="setMode('keyboard')">
+                    <div class="mode-icon">⌨️</div>
+                    <div class="mode-title">자리연습</div>
+                    <div class="mode-desc">키 위치 익히기</div>
+                </div>
+                <div class="mode-card selected" data-mode="word" onclick="setMode('word')">
+                    <div class="mode-icon">📝</div>
+                    <div class="mode-title">단어 연습</div>
+                    <div class="mode-desc">단어로 손가락 풀기</div>
+                </div>
+                <div class="mode-card" data-mode="sentence" onclick="setMode('sentence')">
+                    <div class="mode-icon">💬</div>
+                    <div class="mode-title">문장 연습</div>
+                    <div class="mode-desc">속담·명언 한 문장</div>
+                </div>
+                <div class="mode-card" data-mode="paragraph" onclick="setMode('paragraph')">
+                    <div class="mode-icon">📖</div>
+                    <div class="mode-title">문단 연습</div>
+                    <div class="mode-desc">긴 지문 도전</div>
+                </div>
+            </div>
+
+            <!-- 화면 키보드 ON/OFF 토글 -->
+            <div
+                style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:12px 16px;background:var(--bg-primary);border-radius:var(--radius-sm)">
+                <span style="font-size:0.9rem;font-weight:600;flex:1">화면 키보드 표시</span>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-keyboard-vis" checked onchange="toggleKeyboardDisplay()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="font-size:0.8rem;color:var(--text-muted)" id="kb-vis-label">ON</span>
+            </div>
+
+            <button id="btn-start" class="btn-primary w-full" style="justify-content:center;font-size:1.1rem"
+                onclick="startSession()">
+                연습 시작 ▶
+            </button>
+        </div>
+
+        <!-- ── 타자 연습 영역 ── -->
+        <div id="section-typing" class="hidden">
+
+            <!-- 실시간 통계 -->
+            <div class="stats-bar" style="margin-bottom:16px">
+                <div class="stat-box">
+                    <div class="label">WPM</div>
+                    <div class="value" id="stat-wpm">0</div>
+                </div>
+                <div class="stat-box accuracy">
+                    <div class="label">정확도</div>
+                    <div class="value" id="stat-acc">100%</div>
+                </div>
+                <div class="stat-box timer">
+                    <div class="label">시간</div>
+                    <div class="value" id="stat-time">00:00</div>
+                </div>
+                <div class="stat-box combo">
+                    <div class="label">콤보</div>
+                    <div class="value" id="stat-combo">0</div>
+                </div>
+            </div>
+
+            <!-- 텍스트 디스플레이 -->
+            <div class="card" style="margin-bottom:16px;padding:20px">
+                <div id="typing-display" class="typing-display" style="margin-bottom:12px"></div>
+                <div id="combo-display" class="combo-display"></div>
+                <textarea id="typing-input" class="typing-input" rows="3" placeholder="여기에 타이핑하세요..." autocomplete="off"
+                    autocorrect="off" autocapitalize="off" spellcheck="false" style="margin-top:12px"></textarea>
+                <div style="display:flex;gap:12px;margin-top:12px">
+                    <button class="btn-secondary" onclick="skipSession()" style="flex:1;justify-content:center">⟳ 새
+                        문장</button>
+                    <button class="btn-danger" onclick="showSetup()" style="flex:1">✕ 나가기</button>
+                </div>
+            </div>
+
+            <!-- 화면 키보드 -->
+            <div id="keyboard-container" class="card" style="margin-bottom:16px;padding:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                    <span style="font-size:0.8rem;font-weight:700;color:var(--text-muted)">⌨️ 화면 키보드</span>
+                    <span style="font-size:0.75rem;color:var(--text-muted)">
+                        <span style="color:var(--accent-green)">■</span> 정타 &nbsp;
+                        <span style="color:var(--accent-red)">■</span> 오타 &nbsp;
+                        <span style="color:var(--accent-cyan)">■</span> 다음 키
+                    </span>
+                </div>
+                <div id="kb-display"></div>
+            </div>
+
+        </div>
+
+        <!-- ── 결과 영역 ── -->
+        <div id="section-result" class="card hidden" style="margin-bottom:24px">
+            <div id="result-content"></div>
+        </div>
+
+        <!-- ── 랭킹 영역 ── -->
+        <div id="section-ranking" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="card" id="card-class-ranking">
+                <h3 style="font-size:1rem;font-weight:900;margin-bottom:16px">📋 학반 랭킹 <span id="class-ranking-label"
+                        style="font-size:0.8rem;color:var(--text-muted)"></span></h3>
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>이름</th>
+                            <th>WPM</th>
+                            <th>Lv</th>
+                        </tr>
+                    </thead>
+                    <tbody id="class-ranking-body"></tbody>
+                </table>
+            </div>
+            <div class="card" id="card-grade-ranking">
+                <h3 style="font-size:1rem;font-weight:900;margin-bottom:16px">🏫 학년 랭킹 <span id="grade-ranking-label"
+                        style="font-size:0.8rem;color:var(--text-muted)"></span></h3>
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>이름</th>
+                            <th>학반</th>
+                            <th>WPM</th>
+                        </tr>
+                    </thead>
+                    <tbody id="grade-ranking-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /container -->
+
+    <!-- 레벨업 오버레이 -->
+    <div id="levelup-overlay" class="levelup-overlay hidden">
+        <div class="levelup-card">
+            <div class="levelup-emoji">🎉</div>
+            <div class="levelup-title" id="levelup-title">레벨 업!</div>
+            <div class="levelup-subtitle" id="levelup-subtitle"></div>
+            <button class="btn-primary" style="margin-top:24px" onclick="closeLevelUp()">계속하기</button>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/profile.js"></script>
+    <script src="js/content.js"></script>
+    <script src="js/records.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/typing-engine.js"></script>
+    <script src="js/keyboard.js"></script>
+    <script>
+        let currentUser = null;
+        let userProfile = null;
+        let isAdminUser = false;
+        let currentLang = 'ko';
+        let currentMode = 'word';
+        let comboCount = 0;
+        let showKeyboard = true;
+        let timerInterval = null;
+        let sessionText = '';
+
+        // ── 인증 ──────────────────────────────────────────────
+        Auth.initAuthListener({
+            requireAuth: true,
+            onLogin: async (user, admin) => {
+                currentUser = user;
+                isAdminUser = admin;
+
+                const profile = await Profile.getProfile(user.uid);
+                if (!profile?.profileComplete) { location.href = '/profile.html'; return; }
+                userProfile = profile;
+
+                document.getElementById('nav-name').textContent = profile.name;
+                document.getElementById('nav-avatar').src = user.photoURL || '';
+                if (admin) document.getElementById('btn-admin').classList.remove('hidden');
+
+                updateExpBar(profile.totalExp || 0);
+                loadRankings();
+                await Content.initializeDefaults();
+
+                // 화면 키보드 초기 렌더
+                KeyboardDisplay.render(document.getElementById('kb-display'), currentLang);
+            }
+        });
+
+        // ── EXP 바 ────────────────────────────────────────────
+        function updateExpBar(totalExp) {
+            const level = Game.calcLevel(totalExp);
+            const progress = Game.levelProgress(totalExp);
+            const toNext = Game.expToNextLevel(totalExp);
+            document.getElementById('nav-level').textContent =
+                `Lv.${level} ${Game.getLevelTitle(level)}`;
+            document.getElementById('exp-bar').style.width = progress + '%';
+            document.getElementById('exp-text').textContent =
+                toNext > 0 ? `다음 레벨까지 ${toNext} EXP` : '최고 레벨!';
+        }
+
+        // ── 언어 / 모드 선택 ──────────────────────────────────
+        function setLang(lang) {
+            currentLang = lang;
+            document.getElementById('btn-ko').classList.toggle('active', lang === 'ko');
+            document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+            KeyboardDisplay.setLang(lang);
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-card').forEach(c =>
+                c.classList.toggle('selected', c.dataset.mode === mode));
+        }
+
+        function toggleKeyboardDisplay() {
+            showKeyboard = document.getElementById('toggle-keyboard-vis').checked;
+            document.getElementById('kb-vis-label').textContent = showKeyboard ? 'ON' : 'OFF';
+        }
+
+        // ── 세션 시작 ──────────────────────────────────────────
+        async function startSession() {
+            const modeKey = currentMode === 'keyboard' ? 'keyboard'
+                : currentMode === 'word' ? 'words'
+                    : currentMode === 'sentence' ? 'sentences'
+                        : 'paragraphs';
+            const contentKey = `${modeKey}_${currentLang}`;
+            const items = await Content.getContent(contentKey);
+            if (!items.length) { alert('콘텐츠가 없습니다.'); return; }
+
+            if (currentMode === 'word') {
+                sessionText = Content.getRandom(items, 5).join(' ');
+            } else {
+                sessionText = Content.getRandom(items, 1)[0];
+            }
+
+            comboCount = 0;
+            document.getElementById('stat-combo').textContent = '0';
+            document.getElementById('stat-wpm').textContent = '0';
+            document.getElementById('stat-acc').textContent = '100%';
+            document.getElementById('stat-time').textContent = '00:00';
+
+            const displayEl = document.getElementById('typing-display');
+            const inputEl = document.getElementById('typing-input');
+            inputEl.value = '';
+            inputEl.disabled = false;
+            displayEl.classList.toggle('lang-en', currentLang === 'en');
+
+            // 타자 엔진 초기화
+            let lastLen = 0;
+            TypingEngine.init({
+                text: sessionText,
+                mode: currentMode,
+                lang: currentLang,
+                onUpdate: ({ wpm, accuracy, elapsed }) => {
+                    document.getElementById('stat-wpm').textContent = wpm;
+                    document.getElementById('stat-acc').textContent = accuracy + '%';
+                    document.getElementById('stat-time').textContent = TypingEngine.formatTime(elapsed);
+                },
+                onComplete: (result) => { clearInterval(timerInterval); saveAndShowResult(result); }
+            });
+
+            TypingEngine.renderText(displayEl, '');
+
+            // 화면 키보드 리셋 + 첫 글자 힌트
+            KeyboardDisplay.render(document.getElementById('kb-display'), currentLang);
+            KeyboardDisplay.highlightNext(sessionText[0]);
+
+            // 입력 이벤트
+            inputEl.oninput = () => {
+                const val = inputEl.value;
+                TypingEngine.processInput(inputEl, displayEl, true);
+
+                // 콤보 계산
+                const correct = [...val].filter((c, i) => c === sessionText[i]).length;
+                if (val.length > lastLen) {
+                    const newChar = val[val.length - 1];
+                    const expected = sessionText[val.length - 1];
+                    const isCorrect = newChar === expected;
+                    isCorrect ? comboCount++ : (comboCount = 0);
+                    document.getElementById('stat-combo').textContent = comboCount;
+
+                    // 화면 키보드 피드백
+                    KeyboardDisplay.pressKey(newChar, isCorrect);
+
+                    // 다음 키 힌트
+                    const nextChar = sessionText[val.length];
+                    if (nextChar) KeyboardDisplay.highlightNext(nextChar);
+                    else KeyboardDisplay.highlightNext(null);
+                } else {
+                    comboCount = 0;
+                    document.getElementById('stat-combo').textContent = '0';
+                    const nextChar = sessionText[val.length];
+                    if (nextChar) KeyboardDisplay.highlightNext(nextChar);
+                }
+                lastLen = val.length;
+            };
+
+            // 키다운 이벤트 — 특수키(BackSpace, Enter 등) 피드백
+            inputEl.onkeydown = (e) => {
+                if (e.key === 'Backspace') KeyboardDisplay.pressKey('Backspace', true);
+                if (e.key === 'Enter') KeyboardDisplay.pressKey('Enter', true);
+                if (e.key === ' ') KeyboardDisplay.pressKey('Space', true);
+            };
+
+            // 화면 전환
+            document.getElementById('section-setup').classList.add('hidden');
+            document.getElementById('section-result').classList.add('hidden');
+            document.getElementById('section-typing').classList.remove('hidden');
+            document.getElementById('keyboard-container').classList.toggle('hidden', !showKeyboard);
+            inputEl.focus();
+        }
+
+        function skipSession() { startSession(); }
+        function showSetup() {
+            clearInterval(timerInterval);
+            document.getElementById('section-typing').classList.add('hidden');
+            document.getElementById('section-result').classList.add('hidden');
+            document.getElementById('section-setup').classList.remove('hidden');
+        }
+
+        // ── 결과 저장 및 표시 ──────────────────────────────────
+        async function saveAndShowResult(result) {
+            document.getElementById('section-typing').classList.add('hidden');
+
+            const expGained = Game.calcExp(result);
+            const prevExp = userProfile.totalExp || 0;
+            const prevLevel = Game.calcLevel(prevExp);
+            const newExp = prevExp + expGained;
+            const newLevel = Game.calcLevel(newExp);
+            const newTotalKeys = (userProfile.totalKeystrokes || 0) + result.keystrokes;
+            const newBadges = Game.checkBadges(userProfile, result, newTotalKeys);
+
+            try {
+                await Records.save(currentUser.uid, userProfile, result);
+                const updateData = {
+                    totalExp: firebase.firestore.FieldValue.increment(expGained),
+                    level: newLevel,
+                    totalKeystrokes: firebase.firestore.FieldValue.increment(result.keystrokes),
+                };
+                if (newBadges.length) updateData.badges = firebase.firestore.FieldValue.arrayUnion(...newBadges);
+                await db.collection('users').doc(currentUser.uid).update(updateData);
+            } catch (e) { console.error('저장 오류:', e); }
+
+            userProfile.totalExp = newExp;
+            userProfile.level = newLevel;
+            userProfile.totalKeystrokes = newTotalKeys;
+            userProfile.badges = [...(userProfile.badges || []), ...newBadges];
+
+            updateExpBar(newExp);
+
+            if (newLevel > prevLevel) {
+                document.getElementById('levelup-title').textContent = `Lv.${newLevel} 달성!`;
+                document.getElementById('levelup-subtitle').textContent = Game.getLevelTitle(newLevel);
+                document.getElementById('levelup-overlay').classList.remove('hidden');
+            }
+
+            document.getElementById('result-content').innerHTML =
+                Game.renderResult(result, expGained, newLevel, newBadges);
+            document.getElementById('section-result').classList.remove('hidden');
+
+            // 랭킹 갱신
+            loadRankings();
+        }
+
+        function closeLevelUp() {
+            document.getElementById('levelup-overlay').classList.add('hidden');
+        }
+        window.startNextSession = () => {
+            document.getElementById('section-result').classList.add('hidden');
+            startSession();
+        };
+        window.showMyRecords = () => { location.href = '/myrecords.html'; };
+
+        // ── 랭킹 로드 ──────────────────────────────────────────
+        async function loadRankings() {
+            if (!userProfile) return;
+            const settings = await Records.getRankingSettings();
+            const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+            const classCard = document.getElementById('card-class-ranking');
+            const gradeCard = document.getElementById('card-grade-ranking');
+
+            if (!settings.classRankingEnabled) {
+                classCard.classList.add('hidden');
+            } else {
+                classCard.classList.remove('hidden');
+                document.getElementById('class-ranking-label').textContent = userProfile.className;
+                const classRank = await Records.getClassRanking(userProfile.className);
+                document.getElementById('class-ranking-body').innerHTML = classRank.length
+                    ? classRank.map((r, i) => `
+            <tr class="rank-${i + 1}">
+              <td>${medals[i] || i + 1}</td>
+              <td>${r.name}</td>
+              <td><strong>${r.bestWpm}</strong></td>
+              <td>Lv.${r.level}</td>
+            </tr>`).join('')
+                    : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">아직 기록 없음</td></tr>';
+            }
+
+            if (!settings.gradeRankingEnabled) {
+                gradeCard.classList.add('hidden');
+            } else {
+                gradeCard.classList.remove('hidden');
+                document.getElementById('grade-ranking-label').textContent = `${userProfile.grade}학년`;
+                const gradeRank = await Records.getGradeRanking(userProfile.grade);
+                document.getElementById('grade-ranking-body').innerHTML = gradeRank.length
+                    ? gradeRank.map((r, i) => `
+            <tr class="rank-${i + 1}">
+              <td>${medals[i] || i + 1}</td>
+              <td>${r.name}</td>
+              <td>${r.className}</td>
+              <td><strong>${r.bestWpm}</strong></td>
+            </tr>`).join('')
+                    : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">아직 기록 없음</td></tr>';
+            }
+        }
+    </script>
+</body>
+
+</html>

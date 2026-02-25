@@ -43,6 +43,8 @@ const BubbleGame = (() => {
     let cb = {};               // 콜백 모음
     let fallingBubbles = [];   // 천장에서 분리되어 떨어지는 버블 배열
     let aimTarget = null;      // 현재 조준 중인 타겟 버블
+    let aimPath = null;       // 조준 경로 { vx, vy, bouncePoint }
+    let totalDrops = 0;        // 전체 내려온 횟수 (하단 행 추가 홀짝 보정용)
 
     // ── 육각형 격자 좌표 ──────────────────────────────────────
     const hexX = (col, row) =>
@@ -65,6 +67,7 @@ const BubbleGame = (() => {
         proj = null;
         score = 0; combo = 0; level = 1; popped = 0;
         dropInterval = DROP_START;
+        totalDrops = 0;
         gameRunning = true;
 
         for (let r = 0; r < INIT_ROWS; r++) spawnRow(r);
@@ -75,28 +78,24 @@ const BubbleGame = (() => {
     // 발사 (단어 입력 완료 시 호출)
     function shoot(word) {
         if (!gameRunning || proj) return false;
-
-        // 화면의 살아있는 버블 중 같은 단어 찾기
         const target = bubbles.find(b => b.alive && b.word === word);
         if (!target) { combo = 0; notifyUpdate(); return false; }
 
-        // 하단 중앙에서 목표를 향해 발사
         const sx = CANVAS_W / 2, sy = CANVAS_H - 28;
-        const dx = target.x - sx, dy = target.y - sy;
-        const d = Math.hypot(dx, dy);
-        proj = {
-            x: sx, y: sy, vx: (dx / d) * PROJ_SPEED, vy: (dy / d) * PROJ_SPEED,
-            color: target.color, word
-        };
+        const path = findShotPath(sx, sy, target);
+        if (!path) { combo = 0; notifyUpdate(); return false; } // 모든 경로 차단됨
+
+        proj = { x: sx, y: sy, vx: path.vx, vy: path.vy, color: target.color, word };
         return true;
     }
 
     // 조준 (입력 중 실시간 호출)
     function aim(word) {
-        if (!gameRunning) { aimTarget = null; return; }
-        // 정확히 일치하는 버블 우선, 없으면 접두사 일치
+        if (!gameRunning) { aimTarget = null; aimPath = null; return; }
         aimTarget = bubbles.find(b => b.alive && b.word === word)
             || (word.length > 0 ? bubbles.find(b => b.alive && b.word.startsWith(word)) : null);
+        const sx = CANVAS_W / 2, sy = CANVAS_H - 28;
+        aimPath = aimTarget ? findShotPath(sx, sy, aimTarget) : null;
     }
 
     function pause() { gameRunning = false; clearInterval(dropTimer); cancelAnimationFrame(animFrame); }
@@ -126,18 +125,21 @@ const BubbleGame = (() => {
 
     // ── 행 스폰 ───────────────────────────────────────────────
     function spawnRow(atRow) {
-        const cols = COLS - (atRow % 2 === 1 ? 1 : 0);
+        // totalDrops를 반영해 실제 화면 홀짝 패리티 결정
+        const visualParity = (atRow + totalDrops) % 2;
+        const cols = COLS - (visualParity === 1 ? 1 : 0);
         for (let c = 0; c < cols; c++) {
             if (Math.random() > FILL_PROB) continue;
             const color = COLORS[Math.floor(Math.random() * COLORS.length)];
             const word = nextWord();
+            // X는 스폰 시 고정 — 이후 row가 바뀌어도 재계산하지 않음
+            const x = BUBBLE_R + c * BUBBLE_R * 2 + (visualParity === 1 ? BUBBLE_R : 0);
             bubbles.push({
                 row: atRow, col: c,
                 color, word,
-                x: hexX(c, atRow),
+                x,
                 y: hexY(atRow),
                 alive: true,
-                popAnim: 0,  // 0=없음, >0=팝 애니 진행
             });
         }
     }
@@ -147,17 +149,13 @@ const BubbleGame = (() => {
         clearInterval(dropTimer);
         dropTimer = setInterval(() => {
             if (!gameRunning) return;
-            // 기존 버블 한 행씩 내림
+            // 기존 버블: Y만 내림 (X는 절대 건들지 않음)
             bubbles.forEach(b => { b.row++; b.y = hexY(b.row); });
-            // 새 행 추가 (0행)
+            // 새 행 추가 전에 totalDrops 증가 (패리티 보정)
+            totalDrops++;
             spawnRow(0);
-            syncX(); // 홀짝 오프셋 재계산
             checkDanger();
         }, dropInterval);
-    }
-
-    function syncX() {
-        bubbles.forEach(b => { b.x = hexX(b.col, b.row); });
     }
 
     // ── 위험 체크 ─────────────────────────────────────────────
@@ -165,6 +163,76 @@ const BubbleGame = (() => {
         if (bubbles.some(b => b.alive && b.y + BUBBLE_R >= DANGER_Y)) {
             endGame(false);
         }
+    }
+
+    // ── 충돌 가능 경로 탐색 ────────────────────────────────────
+    // 선분 (sx,sy)→(tx,ty)가 excluding 제외한 버블과 충돌하는지 체크
+    function isSegmentClear(sx, sy, tx, ty, excluding) {
+        const dx = tx - sx, dy = ty - sy;
+        const len = Math.hypot(dx, dy);
+        if (len === 0) return true;
+        const ux = dx / len, uy = dy / len;
+        for (const b of bubbles) {
+            if (!b.alive || excluding.has(b)) continue;
+            const bx = b.x - sx, by = b.y - sy;
+            const t = Math.max(0, Math.min(len, bx * ux + by * uy));
+            const cx = sx + t * ux, cy = sy + t * uy;
+            if (Math.hypot(b.x - cx, b.y - cy) < BUBBLE_R * 1.85) return false;
+        }
+        return true;
+    }
+
+    // 직선 또는 벽 반사 경로 탐색
+    // 반환: { vx, vy, bouncePoint } 또는 null(모든 경로 차단)
+    function findShotPath(sx, sy, target) {
+        const excl = new Set([target]);
+
+        // 1. 직선
+        if (isSegmentClear(sx, sy, target.x, target.y, excl)) {
+            const d = Math.hypot(target.x - sx, target.y - sy);
+            return {
+                vx: (target.x - sx) / d * PROJ_SPEED,
+                vy: (target.y - sy) / d * PROJ_SPEED, bouncePoint: null
+            };
+        }
+
+        // 2. 좌측 벽 반사 (x = BUBBLE_R)
+        const wallL = BUBBLE_R;
+        const rtxL = 2 * wallL - target.x;          // 반사 목표 x
+        const dL = Math.hypot(rtxL - sx, target.y - sy);
+        if (dL > 0) {
+            const bpLy = sy + (wallL - sx) / (rtxL - sx) * (target.y - sy);
+            if (bpLy > 0 && bpLy < sy) {
+                if (isSegmentClear(sx, sy, wallL, bpLy, excl) &&
+                    isSegmentClear(wallL, bpLy, target.x, target.y, excl)) {
+                    return {
+                        vx: (rtxL - sx) / dL * PROJ_SPEED,
+                        vy: (target.y - sy) / dL * PROJ_SPEED,
+                        bouncePoint: { x: wallL, y: bpLy }
+                    };
+                }
+            }
+        }
+
+        // 3. 우측 벽 반사 (x = CANVAS_W - BUBBLE_R)
+        const wallR = CANVAS_W - BUBBLE_R;
+        const rtxR = 2 * wallR - target.x;
+        const dR = Math.hypot(rtxR - sx, target.y - sy);
+        if (dR > 0) {
+            const bpRy = sy + (wallR - sx) / (rtxR - sx) * (target.y - sy);
+            if (bpRy > 0 && bpRy < sy) {
+                if (isSegmentClear(sx, sy, wallR, bpRy, excl) &&
+                    isSegmentClear(wallR, bpRy, target.x, target.y, excl)) {
+                    return {
+                        vx: (rtxR - sx) / dR * PROJ_SPEED,
+                        vy: (target.y - sy) / dR * PROJ_SPEED,
+                        bouncePoint: { x: wallR, y: bpRy }
+                    };
+                }
+            }
+        }
+
+        return null; // 모든 경로 차단
     }
 
     // ── 충돌 판정 ─────────────────────────────────────────────
@@ -217,7 +285,7 @@ const BubbleGame = (() => {
             const cur = queue.shift();
             for (const nb of bubbles) {
                 if (visited.has(nb) || !nb.alive || nb.color !== color) continue;
-                if (Math.hypot(nb.x - cur.x, nb.y - cur.y) < BUBBLE_R * 2.6) {
+                if (Math.hypot(nb.x - cur.x, nb.y - cur.y) < BUBBLE_R * 2.2) {
                     visited.add(nb);
                     queue.push(nb);
                 }
@@ -258,7 +326,7 @@ const BubbleGame = (() => {
             const cur = queue[i++];
             for (const nb of bubbles) {
                 if (connected.has(nb) || !nb.alive) continue;
-                if (Math.hypot(nb.x - cur.x, nb.y - cur.y) < BUBBLE_R * 2.6) {
+                if (Math.hypot(nb.x - cur.x, nb.y - cur.y) < BUBBLE_R * 2.2) {
                     connected.add(nb);
                     queue.push(nb);
                 }
@@ -465,30 +533,69 @@ const BubbleGame = (() => {
         ctx.restore();
     }
 
-    // ── 대포 렌더링 (회전 + 색상 + 조준선) ──────────────────────
+    // ── 대포 렌더링 (회전 + 색상 + 반사 조준선) ────────────────
     function drawCannon() {
         const cx = CANVAS_W / 2, cy = CANVAS_H - 28;
         const barrelColor = aimTarget ? aimTarget.color : '#00d4ff';
 
-        // 타겟 방향 각도 계산
-        let angle = -Math.PI / 2; // 기본: 정면 위
-        if (aimTarget) {
+        // 실제 발사 방향 각도 (aimPath가 있으면 반사 방향, 없으면 타겟 직선)
+        let angle = -Math.PI / 2;
+        if (aimPath) {
+            angle = Math.atan2(aimPath.vy, aimPath.vx);
+        } else if (aimTarget) {
             angle = Math.atan2(aimTarget.y - cy, aimTarget.x - cx);
         }
 
-        // 조준선 (점선)
+        // 조준선 렌더링
         if (aimTarget) {
             ctx.save();
             ctx.setLineDash([6, 8]);
-            ctx.strokeStyle = barrelColor;
-            ctx.globalAlpha = 0.35;
             ctx.lineWidth = 1.5;
-            ctx.shadowColor = barrelColor;
             ctx.shadowBlur = 8;
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.lineTo(aimTarget.x, aimTarget.y);
-            ctx.stroke();
+
+            if (aimPath && aimPath.bouncePoint) {
+                // 반사 경로: 2단계 점선 (색상 구분)
+                const bp = aimPath.bouncePoint;
+                // 1구간: 포신 → 반사점 (밝은 색)
+                ctx.strokeStyle = barrelColor;
+                ctx.shadowColor = barrelColor;
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(bp.x, bp.y);
+                ctx.stroke();
+                // 2구간: 반사점 → 타겟 (약간 어둡게)
+                ctx.globalAlpha = 0.35;
+                ctx.beginPath();
+                ctx.moveTo(bp.x, bp.y);
+                ctx.lineTo(aimTarget.x, aimTarget.y);
+                ctx.stroke();
+                // 반사점 표시 (원)
+                ctx.globalAlpha = 0.7;
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.arc(bp.x, bp.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = barrelColor;
+                ctx.fill();
+            } else if (aimPath) {
+                // 직선 경로
+                ctx.strokeStyle = barrelColor;
+                ctx.shadowColor = barrelColor;
+                ctx.globalAlpha = 0.35;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(aimTarget.x, aimTarget.y);
+                ctx.stroke();
+            } else {
+                // 경로 차단됨: 빨간 점선
+                ctx.strokeStyle = '#FF4455';
+                ctx.shadowColor = '#FF4455';
+                ctx.globalAlpha = 0.45;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(aimTarget.x, aimTarget.y);
+                ctx.stroke();
+            }
             ctx.setLineDash([]);
             ctx.restore();
         }
@@ -496,17 +603,14 @@ const BubbleGame = (() => {
         // 포신 (회전)
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.rotate(angle + Math.PI / 2); // 포신이 위를 향하도록 보정
+        ctx.rotate(angle + Math.PI / 2);
         ctx.shadowColor = barrelColor;
         ctx.shadowBlur = 22;
         ctx.globalAlpha = 0.92;
         ctx.fillStyle = barrelColor;
         ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(-6, -34, 12, 26, 4);
-        } else {
-            ctx.rect(-6, -34, 12, 26);
-        }
+        if (ctx.roundRect) ctx.roundRect(-6, -34, 12, 26, 4);
+        else ctx.rect(-6, -34, 12, 26);
         ctx.fill();
         ctx.restore();
 

@@ -35,28 +35,40 @@
     <div class="container" style="padding-top:24px;padding-bottom:64px">
 
         <!-- 시작 전 소개 화면 -->
-        <div id="bubble-intro" class="card" style="max-width:520px;margin:0 auto 24px">
-            <div class="intro-icon">🫧</div>
-            <h2>버블 슈터</h2>
-            <p style="margin-bottom:16px">버블 속 단어를 타이핑하면 버블이 격파됩니다!</p>
-            <div
-                style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;text-align:left;background:var(--bg-primary);border-radius:var(--radius-sm);padding:16px">
-                <div style="font-size:0.88rem;color:var(--text-secondary)">⌨️ 단어를 입력하면 해당 버블로 발사</div>
-                <div style="font-size:0.88rem;color:var(--text-secondary)">🔗 같은 색 버블이 연결되면 연쇄 제거</div>
-                <div style="font-size:0.88rem;color:var(--text-secondary)">⏱️ 시간이 지날수록 버블이 더 빨리 내려옴</div>
-                <div style="font-size:0.88rem;color:var(--accent-red)">💀 버블이 위험선에 닿으면 게임 오버!</div>
+        <div id="bubble-intro" style="max-width:520px;margin:0 auto">
+            <div class="card" style="margin-bottom:16px">
+                <div class="intro-icon">🫧</div>
+                <h2>버블 슈터</h2>
+                <p style="margin-bottom:16px">버블 속 단어를 타이핑하면 버블이 격파됩니다!</p>
+                <div
+                    style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;text-align:left;background:var(--bg-primary);border-radius:var(--radius-sm);padding:16px">
+                    <div style="font-size:0.88rem;color:var(--text-secondary)">⌨️ 단어를 입력하면 해당 버블로 발사</div>
+                    <div style="font-size:0.88rem;color:var(--text-secondary)">🔗 같은 색 버블이 연결되면 연쇄 제거</div>
+                    <div style="font-size:0.88rem;color:var(--text-secondary)">⏱️ 시간이 지날수록 버블이 더 빨리 내려옴</div>
+                    <div style="font-size:0.88rem;color:var(--accent-red)">💀 버블이 위험선에 닿으면 게임 오버!</div>
+                </div>
+                <div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:16px">
+                    <label style="font-size:0.88rem;color:var(--text-secondary)">언어</label>
+                    <div class="lang-toggle">
+                        <button class="lang-btn active" id="btn-lang-ko" onclick="setGameLang('ko')">한글</button>
+                        <button class="lang-btn" id="btn-lang-en" onclick="setGameLang('en')">English</button>
+                    </div>
+                </div>
+                <button id="btn-game-start" class="btn-primary w-full" style="justify-content:center;font-size:1.1rem"
+                    onclick="startGame()">
+                    🎮 게임 시작
+                </button>
             </div>
-            <div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:16px">
-                <label style="font-size:0.88rem;color:var(--text-secondary)">언어</label>
-                <div class="lang-toggle">
-                    <button class="lang-btn active" id="btn-lang-ko" onclick="setGameLang('ko')">한글</button>
-                    <button class="lang-btn" id="btn-lang-en" onclick="setGameLang('en')">English</button>
+
+            <!-- 메인 화면 랭킹 보드 -->
+            <div class="card">
+                <h3 style="font-size:1rem;font-weight:900;margin-bottom:16px">🏆 버블 슈터 랭킹</h3>
+                <div id="bubble-ranking-intro">
+                    <div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:12px">
+                        로딩 중...
+                    </div>
                 </div>
             </div>
-            <button id="btn-game-start" class="btn-primary w-full" style="justify-content:center;font-size:1.1rem"
-                onclick="startGame()">
-                🎮 게임 시작
-            </button>
         </div>
 
         <!-- 게임 영역 (숨김) -->
@@ -140,6 +152,47 @@
         let gameLang = 'ko';
         let isGameActive = false;
 
+        // ── 캔버스 반응형 리사이즈 ────────────────────────────────
+        // 게임 내부 로직(480×560)은 그대로, CSS scale로 시각적 크기만 조정
+        const CANVAS_BASE_W = 480;
+        const CANVAS_BASE_H = 560;
+        const SIDE_PANEL_W = 220;  // 사이드 패널 너비
+        const GAME_GAP = 20;        // flex gap
+
+        function resizeBubbleCanvas() {
+            const wrap = document.getElementById('bubble-canvas-wrap');
+            if (!wrap) return;
+
+            const container = document.querySelector('.container');
+            const containerW = container ? container.clientWidth : window.innerWidth - 48;
+            const navH = document.querySelector('.nav')?.offsetHeight || 60;
+            const availH = window.innerHeight - navH - 80; // 상하 여백
+            const availW = containerW - SIDE_PANEL_W - GAME_GAP;
+
+            // 너비·높이 기준 scale 중 작은 값 사용, 최소 0.5 최대 2.5
+            const scaleByW = availW / CANVAS_BASE_W;
+            const scaleByH = availH / CANVAS_BASE_H;
+            const scale = Math.min(scaleByW, scaleByH, 2.5);
+            const finalScale = Math.max(scale, 0.5);
+
+            wrap.style.transform = `scale(${finalScale})`;
+            // transform-origin: top left 기준 — 래퍼의 레이아웃 공간도 맞춤
+            wrap.style.width = CANVAS_BASE_W + 'px';
+            wrap.style.height = CANVAS_BASE_H + 'px';
+            // 부모 flex 공간을 scale된 시각적 크기에 맞게 확보
+            wrap.style.marginRight = (CANVAS_BASE_W * (finalScale - 1)) + 'px';
+            wrap.style.marginBottom = (CANVAS_BASE_H * (finalScale - 1)) + 'px';
+        }
+
+        window.addEventListener('resize', () => {
+            if (!document.getElementById('bubble-game-area').classList.contains('hidden')) {
+                resizeBubbleCanvas();
+            }
+        });
+
+        // ── 랭킹은 인증과 무관하게 페이지 로드 즉시 호출 ────────
+        loadBubbleRanking();
+
         // ── 인증 ──────────────────────────────────────────────
         Auth.initAuthListener({
             requireAuth: true,
@@ -151,7 +204,6 @@
                 document.getElementById('nav-name').textContent = profile.name;
                 document.getElementById('nav-avatar').src = user.photoURL || '';
                 await Content.initializeDefaults();
-                loadBubbleRanking();
             }
         });
 
@@ -197,6 +249,9 @@
             // 첫 단어 목록 표시
             refreshWordList();
             document.getElementById('bubble-input').focus();
+
+            // 캔버스 크기 동적 조정
+            resizeBubbleCanvas();
         }
 
         function restartGame() { startGame(); }
@@ -298,15 +353,24 @@
                         <td>Lv.${r.bestLevel || 1}</td>
                     </tr>`;
                 }).join('');
-                document.getElementById('bubble-ranking-wrap').innerHTML = rows.length
+                const tableHtml = rows.length
                     ? `<table class="bubble-ranking-table">
                         <thead><tr><th>#</th><th>이름</th><th>반</th><th>점수</th><th>레벨</th></tr></thead>
                         <tbody>${rows}</tbody>
                        </table>`
                     : '<div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:12px">아직 기록 없음</div>';
+                // intro 화면 랭킹 업데이트
+                const introEl = document.getElementById('bubble-ranking-intro');
+                if (introEl) introEl.innerHTML = tableHtml;
+                // 게임 영역 사이드패널 랭킹 업데이트
+                const wrapEl = document.getElementById('bubble-ranking-wrap');
+                if (wrapEl) wrapEl.innerHTML = tableHtml;
             } catch (e) {
-                document.getElementById('bubble-ranking-wrap').innerHTML =
-                    '<div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:12px">랭킹 로드 실패</div>';
+                const errHtml = '<div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:12px">랭킹 로드 실패</div>';
+                const introEl = document.getElementById('bubble-ranking-intro');
+                if (introEl) introEl.innerHTML = errHtml;
+                const wrapEl = document.getElementById('bubble-ranking-wrap');
+                if (wrapEl) wrapEl.innerHTML = errHtml;
             }
         }
     </script>

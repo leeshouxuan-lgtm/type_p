@@ -156,11 +156,40 @@ const BubbleGame = (() => {
         loop();
     }
 
+    // 타수(WPM) 추적용 상태
+    let startTime = 0;
+    let totalCharsTyped = 0;
+    let lastWordTime = 0;
+    let lastWordWpm = 0;
+    let maxWpm = 0;
+
     // 발사 (단어 입력 완료 시 호출)
     function shoot(word) {
         if (!gameRunning || proj) return false;
+
+        const now = Date.now();
+        if (startTime === 0) startTime = now;
+
         const target = bubbles.find(b => b.alive && b.word === word);
-        if (!target) { combo = 0; notifyUpdate(); return false; }
+        if (!target) {
+            combo = 0;
+            notifyUpdate();
+            return false;
+        }
+
+        // 성공 타이핑 시 통계 계산
+        const wordLen = word.length;
+        totalCharsTyped += wordLen;
+
+        if (lastWordTime === 0) lastWordTime = startTime;
+        const timeDiffSec = (now - lastWordTime) / 1000;
+
+        // 현재 단어 WPM (1글자 = 1타격 가정, 분당 타수)
+        if (timeDiffSec > 0) {
+            lastWordWpm = Math.round((wordLen / timeDiffSec) * 60);
+            if (lastWordWpm > maxWpm) maxWpm = lastWordWpm;
+        }
+        lastWordTime = now;
 
         const sx = CANVAS_W / 2, sy = CANVAS_H - 28;
         const path = findShotPath(sx, sy, target);
@@ -272,7 +301,7 @@ const BubbleGame = (() => {
             const bx = b.x - sx, by = b.y - sy;
             const t = Math.max(0, Math.min(len, bx * ux + by * uy));
             const cx = sx + t * ux, cy = sy + t * uy;
-            if (Math.hypot(b.x - cx, b.y - cy) < BUBBLE_R * 1.85) return false;
+            if (Math.hypot(b.x - cx, b.y - cy) < BUBBLE_R * 1.7) return false;
         }
         return true;
     }
@@ -297,7 +326,7 @@ const BubbleGame = (() => {
             const d = Math.hypot(rtx - sx, target.y - sy);
             if (d === 0) return null;
             const bpY = sy + (wallX - sx) / (rtx - sx) * (target.y - sy);
-            if (bpY <= 0 || bpY >= sy) return null;
+            if (bpY <= -BUBBLE_R || bpY >= sy) return null;
             // 1구간: 포신 → 반사점
             if (!isSegmentClear(sx, sy, wallX, bpY, excl)) return null;
             // 2구간: 반사점 → 타겟 (실제로 맞출 수 있는지 확인)
@@ -473,7 +502,12 @@ const BubbleGame = (() => {
     }
 
     function notifyUpdate(extra = {}) {
-        if (cb.onUpdate) cb.onUpdate({ score, level, combo, ...extra });
+        let avgWpm = 0;
+        if (startTime > 0) {
+            const totalElapsedSec = (Date.now() - startTime) / 1000;
+            if (totalElapsedSec > 0) avgWpm = Math.round((totalCharsTyped / totalElapsedSec) * 60);
+        }
+        if (cb.onUpdate) cb.onUpdate({ score, level, combo, wpm: { current: lastWordWpm, avg: avgWpm, max: maxWpm }, ...extra });
     }
 
     // ── 게임 종료 ─────────────────────────────────────────────

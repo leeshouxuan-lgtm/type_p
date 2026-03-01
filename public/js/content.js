@@ -194,9 +194,16 @@ const Content = (() => {
         keyboard_basic_ko: {
             items: [
                 'ㅁㄴㅇㄹ', 'ㅓㅏㅣ;', 'ㅁㄴㅇㄹ ㅓㅏㅣ;',
+                'ㅁㅓㄴㅏㅇㅣㄹㅣ', 'ㄹㅏㅇㅣㄴㅓㅁㅓ', '아니어리',
                 'ㅂㅈㄷㄱㅅ', 'ㅛㅕㅑㅐㅔ', 'ㅂㅈㄷㄱㅅ ㅛㅕㅑㅐㅔ',
+                'ㄱㅏㅅㅓㄱㅗㅛㅕ', 'ㅂㅐㄷㅔㅅㅣㄱㅏ', '수사고기',
                 'ㅋㅌㅊㅍㅎ', 'ㅠㅜㅡ', 'ㅋㅌㅊㅍㅎ ㅠㅜㅡ',
-                'ㅃㅉㄸㄲㅆ', 'ㅒㅖ', 'ㅃㅉㄸㄲㅆ ㅒㅖ'
+                'ㅊㅠㅍㅜㅋㅡㅎㅣ', 'ㅌㅓㅍㅜㅋㅏㅊㅣ', '푸른하늘',
+                'ㅃㅉㄸㄲㅆ', 'ㅒㅖ', 'ㅃㅉㄸㄲㅆ ㅒㅖ',
+                'ㄲㅒㄸㅖㅃㅏㅉㅓ', 'ㅆㅣㄲㅣㄸㅐㅃㅒ', '떠나기',
+                'ㅁㅂㅋㅃ ㄴㅈㅌㅉ', 'ㅇㄷㅊㄸ ㄹㄱㅍㄲ', 'ㅎㅅ ㅆ',
+                'ㅓㅛㅠㅏㅕㅜㅣㅐㅡㅔㅒㅖ', 'ㅏㅑㅓㅕㅗㅛㅜㅠㅡㅣ',
+                '가나다라마바사', '아자차카타파하'
             ]
         },
 
@@ -223,8 +230,14 @@ const Content = (() => {
         // ── 자리연습: 영문 기초 ──
         keyboard_basic_en: {
             items: [
-                'asdf jkl;', 'asdfgh jkl;th', 'qwerty uiop', 'zxcvbnm',
-                'ASDF JKL;', 'QWERTY UIOP', 'ZXCVBNM'
+                'asdf jkl;', 'asdfgh jkl;th', 'asdfghjkl;',
+                'fjdksla; a;slkdjf', 'dkfj slak',
+                'qwerty uiop', 'qwert yuiop', 'qaz wsx edc',
+                'rfv tgb yhn ujm', 'ik, ol. p;/',
+                'zxcvbnm', 'zxc vbn m', 'vnm bcz x',
+                'ASDF JKL;', 'QWERTY UIOP', 'ZXCVBNM',
+                'The quick brown fox', 'jumps over the lazy dog',
+                'Pack my box with five dozen liquor jugs'
             ]
         },
 

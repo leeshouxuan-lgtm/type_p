@@ -4,13 +4,14 @@
     flex-direction: column;
     gap: 6px;
     padding: 16px;
+    padding-bottom: 40px;
+    /* 손가락이 삐져나올 수 있으므로 하단 여백 추가 */
     background: var(--bg-primary);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     user-select: none;
     position: relative;
-    overflow: hidden;
-    /* 영역 밖으로 핸드 오버레이가 나가지 않도록 차단 */
+    /* overflow: hidden 제거 (손가락 잘림 방지) */
 }
 
 .kb-row {
@@ -129,7 +130,7 @@
     border-bottom: none;
     border-radius: 40px 40px 10px 10px;
     backdrop-filter: blur(2px);
-    z-index: 2;
+    z-index: 1;
 }
 
 .fingers {
@@ -137,7 +138,7 @@
     align-items: flex-end;
     gap: 7px;
     position: relative;
-    z-index: 1;
+    z-index: 3;
     padding-bottom: 75px;
     min-height: 120px;
 }

@@ -110,6 +110,9 @@ const KeyboardDisplay = (() => {
         // 손가락 오버레이 영역 추가 (keyboard.css의 구조와 일치시킴)
         const hands = document.createElement('div');
         hands.className = 'hand-overlay';
+        if (options.opacity !== undefined) {
+            hands.style.opacity = options.opacity;
+        }
 
         hands.innerHTML = `
             <div class="hand left-hand">

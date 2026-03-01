@@ -252,12 +252,11 @@
             requireAuth: true,
             requireAdmin: true,
             onLogin: async (user) => {
-                console.log('관리자 로그인 확인됨:', user.email, '(v1.2.0)');
+                console.log('관리자 로그인 확인됨:', user.email, '(v1.2.1)');
                 await loadStudents();
                 await loadRankingSettings();
                 await loadKeyboardSettings();
                 await loadContent('keyboard_basic_ko');
-                checkAdminStatus();
             }
         });
 

@@ -252,7 +252,7 @@
                             beginAtZero: false,
                             grid: { color: 'rgba(42,42,90,0.5)' },
                             ticks: { color: '#606090' },
-                            title: { display: true, text: 'WPM', color: '#606090' }
+                            title: { display: true, text: '타수 (CPM)', color: '#606090' }
                         }
                     }
                 }
@@ -284,7 +284,7 @@
             wpmChart.data.labels = labels.map(l => l.replace('-', '년 ') + '월');
             wpmChart.data.datasets = [
                 {
-                    label: '평균 WPM',
+                    label: '평균 타수',
                     data: avgWpms,
                     borderColor: '#00d4ff',
                     backgroundColor: 'rgba(0,212,255,0.08)',
@@ -294,7 +294,7 @@
                     pointRadius: 4,
                 },
                 {
-                    label: '최고 WPM',
+                    label: '최고 타수',
                     data: maxWpms,
                     borderColor: '#9b59ff',
                     backgroundColor: 'transparent',
@@ -320,7 +320,7 @@
           <span style="font-size:0.9rem">${LANG_LABEL[lang]}</span>
           <div style="display:flex;align-items:center;gap:12px">
             <span style="font-size:0.8rem;color:var(--text-muted)">${recs.length}회</span>
-            <span style="font-weight:900;color:var(--accent-cyan)">${avgWpm} WPM</span>
+            <span style="font-weight:900;color:var(--accent-cyan)">${avgWpm} 타수</span>
           </div>
         </div>
         <div class="progress-bar-wrap" style="margin-top:4px">
@@ -340,7 +340,7 @@
           <span style="font-size:0.9rem">${MODE_LABEL[mode] || mode}</span>
           <div style="display:flex;align-items:center;gap:12px">
             <span style="font-size:0.8rem;color:var(--text-muted)">${recs.length}회</span>
-            <span style="font-weight:900;color:var(--accent-purple)">${avgWpm} WPM</span>
+            <span style="font-weight:900;color:var(--accent-purple)">${avgWpm} 타수</span>
           </div>
         </div>
         <div class="progress-bar-wrap" style="margin-top:4px">

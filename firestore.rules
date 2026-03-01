@@ -19,14 +19,20 @@ service cloud.firestore {
 
     // ── users 컬렉션 ──────────────────────────────────
     match /users/{uid} {
-      // 본인: 읽기/생성 허용. 수정은 profileComplete 최초 설정만 허용
+      // 본인: 읽기/생성 허용.
       allow read: if isOwner(uid) || isAdmin();
       allow create: if isOwner(uid);
-      // 본인은 profileComplete, level, totalExp, totalKeystrokes만 수정 가능
-      // 이름/학반 수정은 관리자만
+      
+      // 업데이트 로직:
+      // 1. 관리자는 모든 필드 수정 가능
+      // 2. 본인의 경우:
+      //    가. 아직 프로필 생성이 완료되지 않은 상태(profileComplete 여부 확인 전)라면 초기 항목 세팅(이름, 학반 포함)을 허용한다.
+      //    나. 프로필 생성이 완료된 상태라면, 이름('name')과 학반('className')은 수정할 수 없으며 나머지(경험치 등)만 수정 가능.
       allow update: if isAdmin() ||
-        (isOwner(uid) && !(request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['name', 'className'])));
+        (isOwner(uid) && (
+          (!('profileComplete' in resource.data) || resource.data.profileComplete != true) ||
+          !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'className']))
+        ));
     }
 
     // ── users 하위 records 컬렉션 ──────────────────────

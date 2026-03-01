@@ -113,7 +113,7 @@ const KeyboardDisplay = (() => {
 
         hands.innerHTML = `
             <div class="hand left-hand">
-                <div class="palm"></div>
+                <div class="palm" id="p-l"></div>
                 <div class="fingers">
                     <div class="finger f-lp" id="f-lp"></div>
                     <div class="finger f-lr" id="f-lr"></div>
@@ -123,7 +123,7 @@ const KeyboardDisplay = (() => {
                 </div>
             </div>
             <div class="hand right-hand">
-                <div class="palm"></div>
+                <div class="palm" id="p-r"></div>
                 <div class="fingers">
                     <div class="finger f-rt" id="f-rt"></div>
                     <div class="finger f-ri" id="f-ri"></div>
@@ -137,15 +137,15 @@ const KeyboardDisplay = (() => {
 
         // 커스텀 위치 적용 (상대적 오프셋 모드)
         if (options.customPositions) {
-            const fingers = el.querySelectorAll('.finger');
-            fingers.forEach(fel => {
-                const pos = options.customPositions[fel.id];
+            const parts = el.querySelectorAll('.finger, .palm');
+            parts.forEach(p => {
+                const pos = options.customPositions[p.id];
                 if (pos && (pos.x !== 0 || pos.y !== 0)) {
                     // 자연스러운 flex 위치에서 translate로 이동
                     let transform = `translate(${pos.x}px, ${pos.y}px)`;
-                    if (fel.id === 'f-lt') transform += ' rotate(70deg)';
-                    if (fel.id === 'f-rt') transform += ' rotate(-70deg)';
-                    fel.style.transform = transform;
+                    if (p.id === 'f-lt') transform += ' rotate(70deg)';
+                    if (p.id === 'f-rt') transform += ' rotate(-70deg)';
+                    p.style.transform = transform;
                 }
             });
         }

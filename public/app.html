@@ -274,12 +274,18 @@
                 </div>
             </div>
 
-            <!-- 모드 선택 (5개 grid) -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px">
-                <div class="mode-card" data-mode="keyboard" onclick="setMode('keyboard')">
+            <!-- 모드 선택 (6개 grid) -->
+            <div
+                style="display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,auto);gap:12px;margin-bottom:20px">
+                <div class="mode-card" data-mode="keyboard_basic" onclick="setMode('keyboard_basic')">
                     <div class="mode-icon">⌨️</div>
-                    <div class="mode-title">자리연습</div>
-                    <div class="mode-desc">키 위치 익히기</div>
+                    <div class="mode-title">자리연습(기초)</div>
+                    <div class="mode-desc">자음·모음 익히기</div>
+                </div>
+                <div class="mode-card" data-mode="keyboard_word" onclick="setMode('keyboard_word')">
+                    <div class="mode-icon">🔡</div>
+                    <div class="mode-title">자리연습(단어)</div>
+                    <div class="mode-desc">단어로 자리 익히기</div>
                 </div>
                 <div class="mode-card selected" data-mode="word" onclick="setMode('word')">
                     <div class="mode-icon">📝</div>
@@ -510,10 +516,11 @@
                 sessionStartTime = Date.now();
             }
 
-            const modeKey = currentMode === 'keyboard' ? 'keyboard'
-                : currentMode === 'word' ? 'words'
-                    : currentMode === 'sentence' ? 'sentences'
-                        : 'paragraphs';
+            const modeKey = currentMode === 'keyboard_basic' ? 'keyboard_basic'
+                : currentMode === 'keyboard_word' ? 'keyboard_word'
+                    : currentMode === 'word' ? 'words'
+                        : currentMode === 'sentence' ? 'sentences'
+                            : 'paragraphs';
             const contentKey = `${modeKey}_${currentLang}`;
             const items = await Content.getContent(contentKey);
             if (!items.length) { alert('콘텐츠가 없습니다.'); return; }

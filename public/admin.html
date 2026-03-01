@@ -149,21 +149,19 @@
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
                     <h3 style="font-size:1.1rem;font-weight:900">📚 연습 콘텐츠 관리</h3>
                     <div class="tabs" style="margin-bottom:0">
-                        <button class="tab-btn active" id="ctab-words_ko" onclick="switchContent('words_ko')">한글
-                            단어</button>
-                        <button class="tab-btn" id="ctab-sentences_ko" onclick="switchContent('sentences_ko')">한글
-                            문장</button>
-                        <button class="tab-btn" id="ctab-paragraphs_ko" onclick="switchContent('paragraphs_ko')">한글
-                            문단</button>
-                        <button class="tab-btn" id="ctab-keyboard_ko" onclick="switchContent('keyboard_ko')">한글
-                            자리연습</button>
-                        <button class="tab-btn" id="ctab-words_en" onclick="switchContent('words_en')">영문 단어</button>
-                        <button class="tab-btn" id="ctab-sentences_en" onclick="switchContent('sentences_en')">영문
-                            문장</button>
-                        <button class="tab-btn" id="ctab-paragraphs_en" onclick="switchContent('paragraphs_en')">영문
-                            문단</button>
-                        <button class="tab-btn" id="ctab-keyboard_en" onclick="switchContent('keyboard_en')">영문
-                            자리연습</button>
+                        <button class="tab-btn active" onclick="switchContent('keyboard_basic_ko', this)">한글
+                            자리(기초)</button>
+                        <button class="tab-btn" onclick="switchContent('keyboard_word_ko', this)">한글 자리(단어)</button>
+                        <button class="tab-btn" onclick="switchContent('words_ko', this)">한글 단어</button>
+                        <button class="tab-btn" onclick="switchContent('sentences_ko', this)">한글 문장</button>
+                        <button class="tab-btn" onclick="switchContent('paragraphs_ko', this)">한글 문단</button>
+                    </div>
+                    <div class="tabs" style="margin-top:8px">
+                        <button class="tab-btn" onclick="switchContent('keyboard_basic_en', this)">영어 자리(기초)</button>
+                        <button class="tab-btn" onclick="switchContent('keyboard_word_en', this)">영어 자리(단어)</button>
+                        <button class="tab-btn" onclick="switchContent('words_en', this)">영어 단어</button>
+                        <button class="tab-btn" onclick="switchContent('sentences_en', this)">영어 문장</button>
+                        <button class="tab-btn" onclick="switchContent('paragraphs_en', this)">영어 문단</button>
                     </div>
                 </div>
 
@@ -226,7 +224,8 @@
                 console.log('관리자 로그인 확인됨:', user.email, '(v1.2.0)');
                 await loadStudents();
                 await loadRankingSettings();
-                await loadContent('words_ko');
+                await loadContent('keyboard_basic_ko');
+                checkAdminStatus();
             }
         });
 
@@ -378,15 +377,16 @@
         }
 
         // ── 콘텐츠 관리 ─────────────────────
-        async function loadContent(key) {
+        async function loadContent(key, btnEl) {
             currentContentKey = key;
             currentContentItems = await Content.getContent(key);
             renderContentList();
-            document.querySelectorAll('[id^="ctab-"]').forEach(b => {
-                b.classList.toggle('active', b.id === `ctab-${key}`);
-            });
+
+            // 모든 탭 버튼에서 active 제거 후 선택된 버튼에 추가
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
         }
-        function switchContent(key) { loadContent(key); }
+        function switchContent(key, btnEl) { loadContent(key, btnEl); }
 
         function renderContentList() {
             const el = document.getElementById('content-list');

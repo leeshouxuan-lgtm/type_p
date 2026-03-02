@@ -75,14 +75,22 @@ const TypingEngine = (() => {
         const val = inputEl.value.replace(/\r?\n|\r/g, '').trimEnd();
         const target = state.text.trimEnd();
 
-        if (val === target) {
+        // 한 글자 이상 입력했다면 엔터 시 무조건 다음으로 넘어가도록 허용 (오타 반영)
+        if (val.length > 0) {
             const elapsed = state.startTime ? (Date.now() - state.startTime) / 1000 : 0;
-            // 오타 수는 현재 텍스트 길이를 바탕으로 재확인
+
             let finalErrors = 0;
+            // 1. 입력된 부분의 오타 체크
             for (let i = 0; i < val.length; i++) {
                 if (val[i] !== state.text[i]) finalErrors++;
             }
-            complete(elapsed, state.totalTyped, finalErrors);
+            // 2. 미입력된 부분도 오타로 간주
+            if (val.length < target.length) {
+                finalErrors += (target.length - val.length);
+            }
+
+            const finalTotal = Math.max(target.length, val.length);
+            complete(elapsed, finalTotal, finalErrors);
             return true;
         }
         return false;

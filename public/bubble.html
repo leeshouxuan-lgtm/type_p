@@ -114,7 +114,12 @@
                             <span class="value" id="hud-speed" style="color:var(--accent-cyan)">보통</span>
                         </div>
                         <div class="bubble-stat"
-                            style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1)">
+                            style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1)">
+                            <span class="label">올 클리어</span>
+                            <span class="value" id="hud-allclear" style="color:var(--accent-yellow)">0</span>
+                        </div>
+                        <div class="bubble-stat"
+                            style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1)">
                             <span class="label">최근 타수</span>
                             <span class="value" id="hud-wpm-current" style="font-size: 0.95rem">0 <span
                                     style="font-size: 0.65rem; color:var(--text-muted)">타수</span></span>
@@ -268,14 +273,14 @@
             } catch (e) { console.error('설정 로드 오류:', e); }
 
             // 점수 초기화
-            updateHUD({ score: 0, level: 1, combo: 0 });
+            updateHUD({ score: 0, level: 1, combo: 0, allClears: 0 });
 
             BubbleGame.init(
                 document.getElementById('bubble-canvas'),
                 items,
                 {
-                    onUpdate: ({ score, level, combo, wpm }) => {
-                        updateHUD({ score, level, combo, wpm });
+                    onUpdate: ({ score, level, combo, wpm, allClears }) => {
+                        updateHUD({ score, level, combo, wpm, allClears });
                         refreshWordList();
                     },
                     onGameOver: ({ score, level }) => {
@@ -305,10 +310,14 @@
         }
 
         // ── HUD 및 UI ─────────────────────────────────────────────
-        function updateHUD({ score, level, combo, wpm }) {
+        function updateHUD({ score, level, combo, wpm, allClears }) {
             document.getElementById('hud-score').textContent = score.toLocaleString();
             document.getElementById('hud-level').textContent = level;
             document.getElementById('hud-combo').textContent = combo > 1 ? `${combo}x` : '0';
+
+            if (allClears !== undefined) {
+                document.getElementById('hud-allclear').textContent = allClears;
+            }
 
             const speeds = ['느림', '보통', '빠름', '매우빠름', '최고속'];
             document.getElementById('hud-speed').textContent = speeds[Math.min(level - 1, 4)];

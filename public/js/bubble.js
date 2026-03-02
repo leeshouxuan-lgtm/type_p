@@ -383,8 +383,9 @@ const BubbleGame = (() => {
             const bx = b.x - sx, by = b.y - sy;
             const t = Math.max(0, Math.min(len, bx * ux + by * uy));
             const cx = sx + t * ux, cy = sy + t * uy;
-            // 실제 충돌 판정 거리(BUBBLE_R * 2 - 4)보다 약간 더 넉넉하게 회피 (BUBBLE_R * 2 - 2)
-            if (Math.hypot(b.x - cx, b.y - cy) < BUBBLE_R * 2 - 2) return false;
+            // 실제 충돌 판정 거리(BUBBLE_R * 2 - 4)보다 약간 더 넉넉하게 회피하면서 
+            // 시각적으로 튕겨볼 만한 좁은 틈새도 시도하도록 여유(BUBBLE_R * 1.6)를 둡니다.
+            if (Math.hypot(b.x - cx, b.y - cy) < BUBBLE_R * 1.6) return false;
         }
         return true;
     }
@@ -394,8 +395,15 @@ const BubbleGame = (() => {
     function findShotPath(sx, sy, target) {
         const excl = new Set([target]);
 
-        // 중심뿐만 아니라 좌우 뺨(offset)을 노려 장애물을 피하는 궤적 탐색
-        const offsets = [0, -12, 12, -24, 24, -36, 36, -46, 46];
+        // 타겟의 너비를 촘촘하게 스윕 (모든 가능한 접점 확인)
+        const steps = 15;
+        const spread = BUBBLE_R * 1.2; // 타겟 중심에서 좌우로 넓게 포진
+        const offsets = [];
+        for (let i = 0; i <= steps; i++) {
+            // 0부터 시작해서 좌우로 번갈아가며 생성 (중앙 궤적을 가장 우선시하기 위해)
+            const t = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * Math.ceil(i / 2) / Math.ceil(steps / 2);
+            offsets.push(t * spread);
+        }
 
         // 1. 모든 오프셋에 대해 "직선 경로"를 먼저 전부 시도 (직사 궤적 우선)
         for (const offX of offsets) {
@@ -432,14 +440,25 @@ const BubbleGame = (() => {
         const wallL = BUBBLE_R;
         const wallR = CANVAS_W - BUBBLE_R;
 
+        // 3. 바운드 경로 스윕 (가상 타겟 생성 후 중앙부터 바깥쪽으로 스윕)
+        // 거리가 멀어질수록 튕기는 각도의 미세한 변화가 결과에 큰 영향을 미치므로 
+        // 바운드 샷은 더 넓은 범위를 더 촘촘하게 스윕합니다.
+        const bounceSteps = 25;
+        const bounceSpread = BUBBLE_R * 1.8;
+        const bounceOffsets = [];
+        for (let i = 0; i <= bounceSteps; i++) {
+            const t = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * Math.ceil(i / 2) / Math.ceil(bounceSteps / 2);
+            bounceOffsets.push(t * bounceSpread);
+        }
+
         // 2. 직선 경로가 모두 막혔다면, 각 오프셋에 대해 "반사 경로" 탐색
-        for (const offX of offsets) {
+        for (const offX of bounceOffsets) {
             const fakeTx = target.x + offX;
             const fakeTy = target.y;
 
             let bounce = null;
             // 타겟 위치에 따라 반대 벽 우선
-            if (fakeTx < sx) {
+            if (target.x < sx) {
                 bounce = tryWall(wallR, fakeTx, fakeTy) ?? tryWall(wallL, fakeTx, fakeTy) ?? null;
             } else {
                 bounce = tryWall(wallL, fakeTx, fakeTy) ?? tryWall(wallR, fakeTx, fakeTy) ?? null;

@@ -172,11 +172,30 @@ const Records = (() => {
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
+    // 사이트 제목/로고 설정 읽기
+    async function getSiteSettings() {
+        try {
+            const snap = await db.collection('settings').doc('site').get();
+            if (!snap.exists) return { title: '우리학교 타자마스터', subtitle: '우리학교 타자 연습 플랫폼', logoUrl: '' };
+            return { title: '우리학교 타자마스터', subtitle: '우리학교 타자 연습 플랫폼', logoUrl: '', ...snap.data() };
+        } catch (e) {
+            console.error('사이트 설정 로드 실패:', e);
+            return { title: '우리학교 타자마스터', subtitle: '우리학교 타자 연습 플랫폼', logoUrl: '' };
+        }
+    }
+
+    // 사이트 제목/로고 설정 저장 (관리자 전용)
+    async function setSiteSettings(data) {
+        await db.collection('settings').doc('site').set(data, { merge: true });
+    }
+
     return {
         save, getMyRecords,
         getClassRanking, getGradeRanking,
         getAllUsers, getUserRecords, getBubbleRecords,
         getRankingSettings, setRankingSettings,
-        getKeyboardSettings, setKeyboardSettings
+        getKeyboardSettings, setKeyboardSettings,
+        getSiteSettings, setSiteSettings
     };
 })();
+

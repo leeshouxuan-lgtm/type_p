@@ -1,13 +1,28 @@
 // 프로필 입력 처리 모듈
 const Profile = (() => {
 
-    // 학반 옵션 생성 (1학년~3학년, 각 1반~6반)
-    function generateClassOptions(selectEl) {
+    // 학반 옵션 생성 - Firestore settings/site에서 grades, classesPerGrade 읽어옴
+    async function generateClassOptions(selectEl) {
         selectEl.innerHTML = '<option value="">학반을 선택하세요</option>';
-        for (let grade = 1; grade <= 3; grade++) {
+
+        let grades = 3;
+        let classesPerGrade = 6;
+
+        try {
+            const snap = await db.collection('settings').doc('site').get();
+            if (snap.exists) {
+                const d = snap.data();
+                if (d.grades) grades = parseInt(d.grades);
+                if (d.classesPerGrade) classesPerGrade = parseInt(d.classesPerGrade);
+            }
+        } catch (e) {
+            console.warn('학반 설정 로드 실패, 기본값 사용:', e);
+        }
+
+        for (let grade = 1; grade <= grades; grade++) {
             const group = document.createElement('optgroup');
             group.label = `${grade}학년`;
-            for (let cls = 1; cls <= 6; cls++) {
+            for (let cls = 1; cls <= classesPerGrade; cls++) {
                 const opt = document.createElement('option');
                 opt.value = `${grade}-${cls}`;
                 opt.textContent = `${grade}학년 ${cls}반`;

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>경덕중학교 타자마스터 — 로그인</title>
+  <title id="page-title">우리학교 타자마스터 — 로그인</title>
   <meta name="description" content="학생 타자 연습 관리 플랫폼. Google 로그인으로 시작하세요.">
   <link rel="stylesheet" href="css/main.css">
   <!-- Firebase SDK -->
@@ -19,10 +19,8 @@
 
       <!-- 로고 -->
       <div class="login-logo">
-        <img src="/img/logo.png" alt="경덕중학교 로고"
-          style="width:100px;height:100px;border-radius:50%;margin-bottom:16px;box-shadow:0 0 28px rgba(0,212,255,0.3)">
-        <h1 class="logo-title text-gradient">경덕중학교<br>타자마스터</h1>
-        <p class="logo-subtitle">경덕중학교 타자 연습 플랫폼</p>
+        <h1 class="logo-title text-gradient" id="site-title">우리학교<br>타자마스터</h1>
+        <p class="logo-subtitle" id="site-subtitle">우리학교 타자 연습 플랫폼</p>
       </div>
 
       <!-- 로그인 카드 -->
@@ -111,7 +109,21 @@
 
   <script src="js/firebase-config.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/records.js"></script>
   <script>
+    // 사이트 제목 동적 로드
+    async function applySiteSettings() {
+      try {
+        const s = await Records.getSiteSettings();
+        if (s.title) {
+          document.getElementById('page-title').textContent = s.title + ' — 로그인';
+          document.getElementById('site-title').innerHTML = s.title.replace(' ', '<br>');
+        }
+        if (s.subtitle) document.getElementById('site-subtitle').textContent = s.subtitle;
+      } catch (e) { console.warn('사이트 설정 로드 실패:', e); }
+    }
+    applySiteSettings();
+
     // ① 이전 fresh 플래그 초기화
     Auth.clearFreshLogin();
 

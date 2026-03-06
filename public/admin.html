@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>경덕중학교 타자마스터 — 관리자</title>
+    <title id="page-title">우리학교 타자마스터 — 관리자</title>
     <link rel="stylesheet" href="css/main.css?v=1.4.2">
     <link rel="stylesheet" href="css/typing.css?v=1.4.2">
     <link rel="stylesheet" href="css/keyboard.css?v=1.4.2">
@@ -19,10 +19,8 @@
     <!-- 네비 -->
     <nav class="nav">
         <div class="nav-inner">
-            <a href="/admin.html" class="nav-logo">
-                <img src="/img/logo.png" alt="경덕중학교"
-                    style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px">
-                경덕중학교 타자마스터 — 관리자
+            <a href="/admin.html" class="nav-logo" id="site-nav-title">
+                우리학교 타자마스터 — 관리자
                 <span id="ui-version"
                     style="font-size:0.65rem;color:var(--text-muted);margin-left:8px;font-family:monospace;opacity:0.6">v1.4.2</span>
             </a>
@@ -41,6 +39,9 @@
             <button class="tab-btn" id="tab-ranking" onclick="switchTab('ranking')">🏆 랭킹/게임 설정</button>
             <button class="tab-btn" id="tab-keyboard" onclick="switchTab('keyboard')">⌨️ 키보드 설정</button>
             <button class="tab-btn" id="tab-content" onclick="switchTab('content')">📚 콘텐츠 관리</button>
+            <button class="tab-btn" id="tab-site" onclick="switchTab('site')">🏷️ 사이트 설정</button>
+            <button class="tab-btn" id="tab-danger" onclick="switchTab('danger')" style="color:var(--accent-red)">🗑️ 일괄
+                관리</button>
         </div>
 
         <!-- ── 탭 1: 학생 목록 ── -->
@@ -228,6 +229,73 @@
                     style="margin-top:12px;padding:10px;background:rgba(0,255,136,0.1);border:1px solid var(--accent-green);border-radius:var(--radius-sm);color:var(--accent-green);font-size:0.85rem;text-align:center">
                     ✅ 저장되었습니다.
                 </div>
+            </div>
+        </div>
+
+        <!-- ── 탭 5: 사이트 설정 ── -->
+        <div id="panel-site" class="hidden">
+            <div class="card" style="max-width:520px">
+                <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:8px">🏷️ 사이트 제목 설정</h3>
+                <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:20px">저장하면 모든 페이지의 제목이 즉시 바뀝니다.
+                </p>
+                <div class="form-group">
+                    <label class="form-label">사이트 제목</label>
+                    <input type="text" id="site-title-input" class="input-field" placeholder="우리학교 타자마스터"
+                        maxlength="30">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">부제목 (로그인 화면 표시)</label>
+                    <input type="text" id="site-subtitle-input" class="input-field" placeholder="우리학교 타자 연습 플랫폼"
+                        maxlength="40">
+                </div>
+
+                <hr style="border-color:var(--border);margin:24px 0">
+
+                <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:8px">🏫 학반 구성 설정</h3>
+                <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:20px">학생 가입 시 표시되는 학년 수와 반 수를
+                    설정합니다.</p>
+                <div style="display:flex;gap:16px;flex-wrap:wrap">
+                    <div class="form-group" style="flex:1;min-width:120px">
+                        <label class="form-label">학년 수</label>
+                        <input type="number" id="site-grades-input" class="input-field" min="1" max="6" value="3"
+                            placeholder="3">
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:120px">
+                        <label class="form-label">학년당 반 수</label>
+                        <input type="number" id="site-classes-input" class="input-field" min="1" max="20" value="6"
+                            placeholder="6">
+                    </div>
+                </div>
+                <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:20px">
+                    예) 학년 3, 반 6 → 1-1 ~ 3-6 까지 총 18개 학반
+                </div>
+
+                <div style="margin-top:8px;text-align:right">
+                    <button class="btn-primary" onclick="saveSiteSettings()">저장</button>
+                </div>
+                <div id="site-save-msg" class="hidden"
+                    style="margin-top:12px;padding:10px;background:rgba(0,255,136,0.1);border:1px solid var(--accent-green);border-radius:var(--radius-sm);color:var(--accent-green);font-size:0.85rem;text-align:center">
+                    ✅ 저장되었습니다.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 탭 6: 일괄 관리 ── -->
+        <div id="panel-danger" class="hidden">
+            <div class="card" style="max-width:520px;border:1px solid rgba(255,68,68,0.3)">
+                <h3 style="font-size:1.1rem;font-weight:900;margin-bottom:8px;color:var(--accent-red)">🗑️ 학생 일괄 제거</h3>
+                <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">관리자 계정을 제외한 <strong>모든 학생 계정과
+                        기록</strong>을 영구 삭제합니다.</p>
+                <div
+                    style="padding:12px 16px;background:rgba(255,68,68,0.07);border:1px solid rgba(255,68,68,0.2);border-radius:var(--radius-sm);margin-bottom:20px;font-size:0.83rem;color:var(--accent-red)">
+                    ⚠️ 삭제 후 복구할 수 없습니다. 신중하게 사용하세요.
+                </div>
+                <div id="danger-student-count" style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:20px">
+                    로딩 중...</div>
+                <button class="btn-primary" onclick="deleteAllStudents()"
+                    style="background:linear-gradient(135deg,#ff4444,#cc0000);width:100%;justify-content:center">
+                    🗑️ 모든 학생 일괄 삭제
+                </button>
             </div>
         </div>
 
@@ -449,6 +517,18 @@
             requireAdmin: true,
             onLogin: async (user) => {
                 console.log('관리자 로그인 확인됨:', user.email, '(v1.2.1)');
+                // 사이트 제목 동적 적용
+                try {
+                    const s = await Records.getSiteSettings();
+                    if (s.title) {
+                        document.getElementById('page-title').textContent = s.title + ' — 관리자';
+                        document.getElementById('site-nav-title').firstChild.textContent = ' ' + s.title + ' — 관리자 ';
+                        document.getElementById('site-title-input').value = s.title;
+                    }
+                    if (s.subtitle) document.getElementById('site-subtitle-input').value = s.subtitle;
+                    if (s.grades) document.getElementById('site-grades-input').value = s.grades;
+                    if (s.classesPerGrade) document.getElementById('site-classes-input').value = s.classesPerGrade;
+                } catch (e) { }
                 await loadStudents();
                 await loadRankingSettings();
                 await loadKeyboardSettings();
@@ -458,16 +538,14 @@
 
         // ── 탭 전환 ──────────────────────────
         function switchTab(name) {
-            ['students', 'ranking', 'keyboard', 'content'].forEach(t => {
+            ['students', 'ranking', 'keyboard', 'content', 'site', 'danger'].forEach(t => {
                 const tabBtn = document.getElementById(`tab-${t}`);
                 const panel = document.getElementById(`panel-${t}`);
                 if (tabBtn) tabBtn.classList.toggle('active', t === name);
                 if (panel) panel.classList.toggle('hidden', t !== name);
             });
-            if (name === 'keyboard') {
-                // 키보드 탭 선택 시 다시 렌더링하여 드래그 이벤트 연결
-                renderAdminKeyboard();
-            }
+            if (name === 'keyboard') renderAdminKeyboard();
+            if (name === 'danger') refreshDangerCount();
         }
 
         // ── 학생 목록 ─────────────────────────
@@ -1007,6 +1085,76 @@
                     <td style="color:var(--text-muted)">${r.duration || 0}초</td>
                 </tr>`;
             }).join('');
+        }
+
+        // ── 사이트 제목 저장 ──────────────────────────
+        async function saveSiteSettings() {
+            const title = document.getElementById('site-title-input').value.trim();
+            const subtitle = document.getElementById('site-subtitle-input').value.trim();
+            const grades = parseInt(document.getElementById('site-grades-input').value) || 3;
+            const classesPerGrade = parseInt(document.getElementById('site-classes-input').value) || 6;
+            if (!title) { showToast('❌ 제목을 입력해주세요.', 'error'); return; }
+            if (grades < 1 || grades > 6) { showToast('❌ 학년 수는 1~6 사이여야 합니다.', 'error'); return; }
+            if (classesPerGrade < 1 || classesPerGrade > 20) { showToast('❌ 반 수는 1~20 사이여야 합니다.', 'error'); return; }
+            try {
+                await Records.setSiteSettings({ title, subtitle, grades, classesPerGrade });
+                document.getElementById('page-title').textContent = title + ' — 관리자';
+                showMsg('site-save-msg');
+                showToast(`✅ 사이트 설정 저장 (${grades}학년 × ${classesPerGrade}반)`, 'success');
+            } catch (e) {
+                showToast('❌ 저장 실패: ' + e.message, 'error');
+            }
+        }
+
+        // ── 학생 일괄 제거 ───────────────────────────
+        function refreshDangerCount() {
+            const el = document.getElementById('danger-student-count');
+            el.textContent = `현재 등록된 학생: 전체 ${allStudents.length}명`;
+        }
+
+        async function deleteAllStudents() {
+            const count = allStudents.length;
+            if (count === 0) { alert('삭제할 학생이 없습니다.'); return; }
+            const input = prompt(
+                `⚠️ 경고: 학생 ${count}명의 모든 기록이 영구 삭제됩니다.\n\n계속하려면 "삭제 확인"을 입력하세요:`
+            );
+            if (input !== '삭제 확인') { alert('취소되었습니다.'); return; }
+            if (!confirm(`정말로 ${count}명 학생의 모든 기록을 삭제하시겠습니까?`)) return;
+
+            showToast('⏳ 삭제 중... 잠시 기다려 주세요.');
+            let deleted = 0, failed = 0;
+
+            for (const student of allStudents) {
+                try {
+                    const recSnap = await db.collection('users').doc(student.id).collection('records').get();
+                    if (!recSnap.empty) {
+                        const b = db.batch();
+                        recSnap.docs.forEach(d => b.delete(d.ref));
+                        await b.commit();
+                    }
+                    const bubSnap = await db.collection('users').doc(student.id).collection('bubbleRecords').get();
+                    if (!bubSnap.empty) {
+                        const b = db.batch();
+                        bubSnap.docs.forEach(d => b.delete(d.ref));
+                        await b.commit();
+                    }
+                    await db.collection('users').doc(student.id).delete();
+                    deleted++;
+                } catch (e) { console.error('삭제 실패:', student.id, e); failed++; }
+            }
+
+            try {
+                const brSnap = await db.collection('bubbleRanking').get();
+                if (!brSnap.empty) {
+                    const b = db.batch();
+                    brSnap.docs.forEach(d => b.delete(d.ref));
+                    await b.commit();
+                }
+            } catch (e) { console.warn('bubbleRanking 정리 실패:', e); }
+
+            await loadStudents();
+            refreshDangerCount();
+            showToast(`✅ ${deleted}명 삭제 완료${failed > 0 ? ` (실패 ${failed}명)` : ''}`, 'success');
         }
 
         // ── 유틸 ─────────────────────────────
